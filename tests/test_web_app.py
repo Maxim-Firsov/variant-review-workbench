@@ -192,8 +192,34 @@ class WebAppTests(unittest.TestCase):
         assert payload is not None
         self.assertEqual(payload["status"], "ok")
         self.assertEqual(payload["job_execution_mode"], "inline")
-        self.assertTrue(payload["upload_root"].endswith("uploads"))
-        self.assertTrue(payload["run_output_root"].endswith("runs"))
+        self.assertEqual(payload["max_upload_mb"], 25)
+        self.assertTrue(payload["paths"]["upload_root"].endswith("uploads"))
+        self.assertTrue(payload["paths"]["run_output_root"].endswith("runs"))
+        self.assertTrue(payload["checks"]["clinvar_variant_summary_exists"])
+
+    def test_health_check_returns_degraded_for_missing_reference_paths(self) -> None:
+        broken_app = create_app(
+            {
+                "TESTING": True,
+                "JOB_EXECUTION_MODE": "inline",
+                "UPLOAD_ROOT": str(Path(self.tmpdir.name) / "broken_uploads"),
+                "RUN_OUTPUT_ROOT": str(Path(self.tmpdir.name) / "broken_runs"),
+                "CLINVAR_VARIANT_SUMMARY": str(Path(self.tmpdir.name) / "missing" / "variant_summary.txt.gz"),
+                "CLINVAR_CONFLICT_SUMMARY": str(Path(self.tmpdir.name) / "missing" / "summary_of_conflicting_interpretations.txt"),
+                "CLINVAR_SUBMISSION_SUMMARY": str(Path(self.tmpdir.name) / "missing" / "submission_summary.txt.gz"),
+                "CLINVAR_CACHE_DB": str(Path(self.tmpdir.name) / "missing_processed" / "clinvar_lookup_cache.sqlite3"),
+            }
+        )
+
+        response = broken_app.test_client().get("/healthz")
+
+        self.assertEqual(response.status_code, 503)
+        payload = response.get_json()
+        assert payload is not None
+        self.assertEqual(payload["status"], "degraded")
+        self.assertFalse(payload["checks"]["clinvar_variant_summary_exists"])
+        self.assertFalse(payload["checks"]["clinvar_conflict_summary_exists"])
+        self.assertFalse(payload["checks"]["clinvar_submission_summary_exists"])
 
     def test_create_run_redirects_to_results_shell(self) -> None:
         response = self.client.post(

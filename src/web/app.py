@@ -12,6 +12,7 @@ from ..app_service import PipelineUsageError, run_pipeline_with_result
 from ..models import GenomeAssembly
 from ..report_builder import write_markdown_report, write_report_export_json
 from .jobs import JobRunner, JobStore
+from .settings import WebRuntimeSettings
 from .storage import (
     UploadValidationError,
     cleanup_expired_run_directories,
@@ -117,21 +118,28 @@ def create_app(test_config: dict | None = None) -> Flask:
     static_dir = Path(__file__).resolve().with_name("static")
 
     app = Flask(__name__, template_folder=str(template_dir), static_folder=str(static_dir))
-    app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
-    app.config["JOB_EXECUTION_MODE"] = "threaded"
-    app.config["UPLOAD_ROOT"] = str(project_root / ".web_runtime" / "uploads")
-    app.config["RUN_OUTPUT_ROOT"] = str(project_root / ".web_runtime" / "runs")
-    app.config["RUN_RETENTION_HOURS"] = 24
-    app.config["CLINVAR_VARIANT_SUMMARY"] = str(project_root / "data" / "clinvar" / "raw" / "variant_summary.txt.gz")
-    app.config["CLINVAR_CONFLICT_SUMMARY"] = str(project_root / "data" / "clinvar" / "raw" / "summary_of_conflicting_interpretations.txt")
-    app.config["CLINVAR_SUBMISSION_SUMMARY"] = str(project_root / "data" / "clinvar" / "raw" / "submission_summary.txt.gz")
-    app.config["CLINVAR_CACHE_DB"] = str(project_root / "data" / "clinvar" / "processed" / "clinvar_lookup_cache.sqlite3")
-    app.config["DISABLE_CLINVAR_CACHE"] = False
+    runtime_settings = WebRuntimeSettings.from_env(project_root)
+    app.config.from_mapping(runtime_settings.to_flask_config())
     if test_config:
         app.config.update(test_config)
 
-    upload_root = Path(app.config["UPLOAD_ROOT"])
-    run_output_root = Path(app.config["RUN_OUTPUT_ROOT"])
+    runtime_settings = WebRuntimeSettings(
+        project_root=project_root,
+        job_execution_mode=str(app.config["JOB_EXECUTION_MODE"]),
+        max_upload_mb=int(app.config["MAX_UPLOAD_MB"]),
+        upload_root=Path(str(app.config["UPLOAD_ROOT"])),
+        run_output_root=Path(str(app.config["RUN_OUTPUT_ROOT"])),
+        run_retention_hours=int(app.config["RUN_RETENTION_HOURS"]),
+        clinvar_variant_summary=Path(str(app.config["CLINVAR_VARIANT_SUMMARY"])),
+        clinvar_conflict_summary=Path(str(app.config["CLINVAR_CONFLICT_SUMMARY"])) if app.config["CLINVAR_CONFLICT_SUMMARY"] else None,
+        clinvar_submission_summary=Path(str(app.config["CLINVAR_SUBMISSION_SUMMARY"])) if app.config["CLINVAR_SUBMISSION_SUMMARY"] else None,
+        clinvar_cache_db=Path(str(app.config["CLINVAR_CACHE_DB"])) if app.config["CLINVAR_CACHE_DB"] else None,
+        disable_clinvar_cache=bool(app.config["DISABLE_CLINVAR_CACHE"]),
+    )
+    app.extensions["runtime_settings"] = runtime_settings
+
+    upload_root = runtime_settings.upload_root
+    run_output_root = runtime_settings.run_output_root
     ensure_storage_roots(upload_root, run_output_root)
 
     app.extensions["job_store"] = JobStore()
@@ -280,13 +288,12 @@ def create_app(test_config: dict | None = None) -> Flask:
         ), 200
 
     @app.get("/healthz")
-    def healthz() -> tuple[dict[str, str], int]:
-        return {
-            "status": "ok",
-            "job_execution_mode": app.config["JOB_EXECUTION_MODE"],
-            "upload_root": str(upload_root),
-            "run_output_root": str(run_output_root),
-        }, 200
+    def healthz() -> tuple[dict[str, object], int]:
+        payload = runtime_settings.health_snapshot()
+        payload["job_execution_mode"] = runtime_settings.job_execution_mode
+        payload["max_upload_mb"] = runtime_settings.max_upload_mb
+        status_code = 200 if payload["status"] == "ok" else 503
+        return payload, status_code
 
     return app
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import gzip
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable, Iterator, TextIO
@@ -39,6 +40,21 @@ VARIANT_SUMMARY_COLUMNS = [
     "AlternateAlleleVCF",
     "RCVaccession",
 ]
+VariantKey = tuple[str, str, int, str, str]
+
+
+def _configure_csv_field_limit() -> None:
+    """Raise the CSV parser field limit to tolerate large ClinVar support-file cells."""
+    limit = sys.maxsize
+    while True:
+        try:
+            csv.field_size_limit(limit)
+            return
+        except OverflowError:
+            limit //= 10
+
+
+_configure_csv_field_limit()
 
 
 def review_status_to_stars(review_status: str | None) -> int | None:
@@ -141,6 +157,49 @@ def _parse_int_field(value: str | None) -> int | None:
         return None
 
 
+def _build_match_from_variant_summary_row(row: dict[str, str]) -> ClinVarMatch | None:
+    """Convert a variant_summary row into a normalized exact-match candidate."""
+    assembly = _parse_assembly(row.get("Assembly"))
+    if assembly == GenomeAssembly.UNKNOWN:
+        return None
+
+    position_vcf = (row.get("PositionVCF") or "").strip()
+    reference_allele = normalize_allele((row.get("ReferenceAlleleVCF") or "").strip())
+    alternate_allele = normalize_allele((row.get("AlternateAlleleVCF") or "").strip())
+    chromosome = normalize_chromosome((row.get("Chromosome") or "").strip())
+    if not position_vcf or not chromosome:
+        return None
+    if reference_allele in {"", "-"} or alternate_allele in {"", "-"}:
+        return None
+
+    variation_id = _parse_int_field(row.get("VariationID"))
+    allele_id = _parse_int_field(row.get("#AlleleID"))
+    parsed_position = _parse_int_field(position_vcf)
+    if variation_id is None or allele_id is None or parsed_position is None:
+        return None
+
+    return ClinVarMatch(
+        matched=True,
+        match_strategy=MatchStrategy.EXACT,
+        assembly=assembly,
+        chromosome=chromosome,
+        position=parsed_position,
+        reference_allele=reference_allele,
+        alternate_allele=alternate_allele,
+        variation_id=variation_id,
+        allele_id=allele_id,
+        accession=(row.get("RCVaccession") or "").split("|", 1)[0] or None,
+        preferred_name=(row.get("Name") or "").strip() or None,
+        gene=(row.get("GeneSymbol") or "").strip() or None,
+        condition_names=_split_pipe_values((row.get("PhenotypeList") or "").strip()),
+        clinical_significance=(row.get("ClinicalSignificance") or "").strip() or None,
+        review_status=(row.get("ReviewStatus") or "").strip() or None,
+        review_stars=review_status_to_stars((row.get("ReviewStatus") or "").strip() or None),
+        interpretation_origin=(row.get("Origin") or "").strip() or None,
+        last_evaluated=(row.get("LastEvaluated") or "").strip() or None,
+    )
+
+
 @dataclass(slots=True)
 class ClinVarIndex:
     """In-memory ClinVar lookup tables used by the annotation stage."""
@@ -171,9 +230,29 @@ class ClinVarIndex:
 def load_variant_summary_index(
     variant_summary_path: Path,
     chunk_size: int = 50_000,
+    target_variant_keys: set[VariantKey] | None = None,
 ) -> ClinVarIndex:
     """Stream `variant_summary.txt.gz` into an exact coordinate lookup index."""
     exact_matches: dict[tuple[str, str, int, str, str], ClinVarMatch] = {}
+
+    if target_variant_keys is not None:
+        with _open_text_stream(variant_summary_path) as handle:
+            reader = csv.DictReader(handle, delimiter="\t")
+            for raw_row in reader:
+                row = {key: (value or "").strip() for key, value in raw_row.items()}
+                candidate = _build_match_from_variant_summary_row(row)
+                if candidate is None:
+                    continue
+                key = candidate.variant_key
+                if key not in target_variant_keys:
+                    continue
+                existing = exact_matches.get(key)
+                exact_matches[key] = candidate if existing is None else _choose_preferred_match(existing, candidate)
+
+        return ClinVarIndex(
+            exact_matches=exact_matches,
+            provenance=[_build_provenance("ClinVar variant summary", "file", variant_summary_path)],
+        )
 
     reader = pd.read_csv(
         variant_summary_path,
@@ -188,44 +267,27 @@ def load_variant_summary_index(
     for chunk in reader:
         chunk = chunk.fillna("")
         for row in chunk.itertuples(index=False):
-            assembly = _parse_assembly(row.Assembly)
-            if assembly == GenomeAssembly.UNKNOWN:
-                continue
-
-            position_vcf = (row.PositionVCF or "").strip()
-            reference_allele = normalize_allele((row.ReferenceAlleleVCF or "").strip())
-            alternate_allele = normalize_allele((row.AlternateAlleleVCF or "").strip())
-            chromosome = normalize_chromosome((row.Chromosome or "").strip())
-            if not position_vcf or not chromosome:
-                continue
-            if reference_allele in {"", "-"} or alternate_allele in {"", "-"}:
-                continue
-
-            variation_id = _parse_int_field(row.VariationID)
-            allele_id = _parse_int_field(row[0])
-            parsed_position = _parse_int_field(position_vcf)
-            if variation_id is None or allele_id is None or parsed_position is None:
-                continue
-            candidate = ClinVarMatch(
-                matched=True,
-                match_strategy=MatchStrategy.EXACT,
-                assembly=assembly,
-                chromosome=chromosome,
-                position=parsed_position,
-                reference_allele=reference_allele,
-                alternate_allele=alternate_allele,
-                variation_id=variation_id,
-                allele_id=allele_id,
-                accession=(row.RCVaccession or "").split("|", 1)[0] or None,
-                preferred_name=(row.Name or "").strip() or None,
-                gene=(row.GeneSymbol or "").strip() or None,
-                condition_names=_split_pipe_values((row.PhenotypeList or "").strip()),
-                clinical_significance=(row.ClinicalSignificance or "").strip() or None,
-                review_status=(row.ReviewStatus or "").strip() or None,
-                review_stars=review_status_to_stars((row.ReviewStatus or "").strip() or None),
-                interpretation_origin=(row.Origin or "").strip() or None,
-                last_evaluated=(row.LastEvaluated or "").strip() or None,
+            candidate = _build_match_from_variant_summary_row(
+                {
+                    "#AlleleID": row[0],
+                    "Name": row.Name,
+                    "GeneSymbol": row.GeneSymbol,
+                    "ClinicalSignificance": row.ClinicalSignificance,
+                    "LastEvaluated": row.LastEvaluated,
+                    "PhenotypeList": row.PhenotypeList,
+                    "ReviewStatus": row.ReviewStatus,
+                    "Origin": row.Origin,
+                    "Assembly": row.Assembly,
+                    "Chromosome": row.Chromosome,
+                    "VariationID": row.VariationID,
+                    "PositionVCF": row.PositionVCF,
+                    "ReferenceAlleleVCF": row.ReferenceAlleleVCF,
+                    "AlternateAlleleVCF": row.AlternateAlleleVCF,
+                    "RCVaccession": row.RCVaccession,
+                }
             )
+            if candidate is None:
+                continue
             key = candidate.variant_key
             existing = exact_matches.get(key)
             exact_matches[key] = candidate if existing is None else _choose_preferred_match(existing, candidate)
@@ -347,6 +409,8 @@ def enrich_index_with_supporting_data(
     allowed_variation_ids = set(target_variation_ids) if target_variation_ids is not None else {
         match.variation_id for match in index.exact_matches.values() if match.variation_id is not None
     }
+    if not allowed_variation_ids:
+        return index
 
     if conflict_summary_path is not None:
         conflicts, provenance = load_conflict_lookup(conflict_summary_path, allowed_variation_ids)
@@ -366,10 +430,15 @@ def load_clinvar_index(
     conflict_summary_path: Path | None = None,
     submission_summary_path: Path | None = None,
     target_variation_ids: Iterable[int] | None = None,
+    target_variant_keys: set[VariantKey] | None = None,
     chunk_size: int = 50_000,
 ) -> ClinVarIndex:
     """Build the exact-match index and optionally attach supporting evidence layers."""
-    index = load_variant_summary_index(variant_summary_path, chunk_size=chunk_size)
+    index = load_variant_summary_index(
+        variant_summary_path,
+        chunk_size=chunk_size,
+        target_variant_keys=target_variant_keys,
+    )
     return enrich_index_with_supporting_data(
         index,
         conflict_summary_path=conflict_summary_path,

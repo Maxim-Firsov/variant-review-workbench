@@ -17,6 +17,25 @@ from src.clinvar_index import (
 from src.models import ClinVarMatch, ConflictSummary, GenomeAssembly, InputVariant
 from src.vcf_parser import normalize_allele, normalize_chromosome, parse_info_field
 
+VARIANT_SUMMARY_HEADER = [
+    "#AlleleID",
+    "Type",
+    "Name",
+    "GeneSymbol",
+    "ClinicalSignificance",
+    "LastEvaluated",
+    "PhenotypeList",
+    "ReviewStatus",
+    "Origin",
+    "Assembly",
+    "Chromosome",
+    "VariationID",
+    "PositionVCF",
+    "ReferenceAlleleVCF",
+    "AlternateAlleleVCF",
+    "RCVaccession",
+]
+
 
 class ModelAndHelperTests(unittest.TestCase):
     def test_input_variant_key_uses_normalized_shape(self) -> None:
@@ -132,6 +151,70 @@ class ModelAndHelperTests(unittest.TestCase):
             conflicts, _ = load_conflict_lookup(path)
 
         self.assertEqual(set(conflicts.keys()), {2})
+
+    def test_load_conflict_lookup_accepts_large_fields_from_realistic_support_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "conflicts.txt"
+            large_description = "x" * 200_000
+            with path.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle, delimiter="\t")
+                writer.writerow(
+                    [
+                        "#Gene_Symbol",
+                        "NCBI_Variation_ID",
+                        "ClinVar_Preferred",
+                        "Submitter1",
+                        "Submitter1_SCV",
+                        "Submitter1_ClinSig",
+                        "Submitter1_LastEval",
+                        "Submitter1_ReviewStatus",
+                        "Submitter1_Sub_Condition",
+                        "Submitter1_Description",
+                        "Submitter2",
+                        "Submitter2_SCV",
+                        "Submitter2_ClinSig",
+                        "Submitter2_LastEval",
+                        "Submitter2_ReviewStatus",
+                        "Submitter2_Sub_Condition",
+                        "Submitter2_Description",
+                        "Rank_diff",
+                        "Conflict_Reported",
+                        "Variant_type",
+                        "Submitter1_Method",
+                        "Submitter2_Method",
+                    ]
+                )
+                writer.writerow(
+                    [
+                        "TP53",
+                        "1234",
+                        "large row",
+                        "Lab A",
+                        "SCV1",
+                        "Pathogenic",
+                        "",
+                        "",
+                        "",
+                        large_description,
+                        "Lab B",
+                        "SCV2",
+                        "Benign",
+                        "",
+                        "",
+                        "",
+                        large_description,
+                        "1",
+                        "yes",
+                        "SNV",
+                        "",
+                        "",
+                    ]
+                )
+
+            conflicts, _ = load_conflict_lookup(path, {1234})
+
+        self.assertEqual(set(conflicts.keys()), {1234})
+        self.assertTrue(conflicts[1234].has_conflict)
 
     def test_load_submission_lookup_skips_preamble_and_filters_targets(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -294,6 +377,60 @@ class ModelAndHelperTests(unittest.TestCase):
 
         self.assertEqual(len(index.exact_matches), 1)
         self.assertIn(("GRCh38", "17", 43045702, "A", "G"), index.exact_matches)
+
+    def test_load_variant_summary_index_filters_to_target_variant_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "variant_summary.txt.gz"
+            with gzip.open(path, "wt", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle, delimiter="\t")
+                writer.writerow(VARIANT_SUMMARY_HEADER)
+                writer.writerow(
+                    [
+                        "10",
+                        "single nucleotide variant",
+                        "TP53 example",
+                        "TP53",
+                        "Pathogenic",
+                        "Jan 01, 2025",
+                        "Li-Fraumeni syndrome",
+                        "reviewed by expert panel",
+                        "germline",
+                        "GRCh38",
+                        "17",
+                        "1234",
+                        "43045702",
+                        "A",
+                        "G",
+                        "RCV000000001",
+                    ]
+                )
+                writer.writerow(
+                    [
+                        "11",
+                        "single nucleotide variant",
+                        "BRCA1 example",
+                        "BRCA1",
+                        "Benign",
+                        "Jan 01, 2025",
+                        "Breast cancer",
+                        "criteria provided, single submitter",
+                        "germline",
+                        "GRCh38",
+                        "17",
+                        "5678",
+                        "43045703",
+                        "C",
+                        "T",
+                        "RCV000000002",
+                    ]
+                )
+
+            index = load_variant_summary_index(
+                path,
+                target_variant_keys={("GRCh38", "17", 43045702, "A", "G")},
+            )
+
+        self.assertEqual(set(index.exact_matches.keys()), {("GRCh38", "17", 43045702, "A", "G")})
 
 
 if __name__ == "__main__":

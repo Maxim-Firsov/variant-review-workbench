@@ -1,0 +1,44 @@
+{
+  "project_name": "variant-review-workbench",
+  "run_started_at": "2026-03-04T07:26:01.564938Z",
+  "input_path": "data\\demo.vcf",
+  "output_dir": "outputs\\demo_run",
+  "assembly": "GRCh38",
+  "pharmgkb_enabled": false,
+  "sources": [
+    {
+      "source_name": "ClinVar variant summary",
+      "source_kind": "file",
+      "source_path": "data\\clinvar\\raw\\variant_summary.txt.gz",
+      "source_url": null,
+      "release_label": null,
+      "downloaded_at": null,
+      "accessed_at": "2026-03-04T07:23:14.955499Z"
+    },
+    {
+      "source_name": "ClinVar conflicting interpretations",
+      "source_kind": "file",
+      "source_path": "data\\clinvar\\raw\\summary_of_conflicting_interpretations.txt",
+      "source_url": null,
+      "release_label": null,
+      "downloaded_at": null,
+      "accessed_at": "2026-03-04T07:23:57.920368Z"
+    },
+    {
+      "source_name": "ClinVar submission summary",
+      "source_kind": "file",
+      "source_path": "data\\clinvar\\raw\\submission_summary.txt.gz",
+      "source_url": null,
+      "release_label": null,
+      "downloaded_at": null,
+      "accessed_at": "2026-03-04T07:26:01.564067Z"
+    }
+  ],
+  "statistics": {
+    "input_variant_count": 4,
+    "clinvar_matched_count": 4,
+    "clinvar_unmatched_count": 0,
+    "conflict_flagged_count": 3,
+    "pharmgkb_enriched_count": 0
+  }
+}

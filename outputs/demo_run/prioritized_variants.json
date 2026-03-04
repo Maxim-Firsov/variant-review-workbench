@@ -1,0 +1,96 @@
+[
+  {
+    "record_id": "record-3",
+    "gene": "BRCA1",
+    "locus": "17:43106487 A>C",
+    "priority_tier": "high_review_priority",
+    "priority_score": 20.0,
+    "clinical_significance": "Pathogenic",
+    "review_status": "reviewed by expert panel",
+    "condition_names": "Breast-ovarian cancer, familial, susceptibility to, 1, Hereditary breast ovarian cancer syndrome, Hereditary cancer-predisposing syndrome, Familial cancer of breast, Breast carcinoma, Breast neoplasm, Ovarian neoplasm, Breast and/or ovarian cancer, Breast-ovarian cancer, familial, susceptibility to, 1;Fanconi anemia, complementation group S;Pancreatic cancer, susceptibility to, 4, BRCA1-related cancer predisposition, Inherited ovarian cancer (without breast cancer)",
+    "conflict": "Yes",
+    "pharmgkb": "No",
+    "flags": [
+      "clinvar_matched",
+      "clinvar_conflict",
+      "clinvar_review_stars_3",
+      "submission_evidence_available"
+    ],
+    "rationale": [
+      "ClinVar significance 'Pathogenic' contributed 10.0 points.",
+      "ClinVar review strength (3 stars) contributed 4.5 points.",
+      "Conflicting ClinVar interpretations increased review priority by 2.5 points.",
+      "Input impact 'HIGH' contributed 3.0 points."
+    ]
+  },
+  {
+    "record_id": "record-2",
+    "gene": "APC",
+    "locus": "5:112827199 T>G",
+    "priority_tier": "high_review_priority",
+    "priority_score": 16.0,
+    "clinical_significance": "Pathogenic",
+    "review_status": "criteria provided, multiple submitters, no conflicts",
+    "condition_names": "Familial adenomatous polyposis 1, Hereditary cancer-predisposing syndrome",
+    "conflict": "No",
+    "pharmgkb": "No",
+    "flags": [
+      "clinvar_matched",
+      "clinvar_review_stars_2",
+      "submission_evidence_available"
+    ],
+    "rationale": [
+      "ClinVar significance 'Pathogenic' contributed 10.0 points.",
+      "ClinVar review strength (2 stars) contributed 3.0 points.",
+      "Input impact 'HIGH' contributed 3.0 points."
+    ]
+  },
+  {
+    "record_id": "record-1",
+    "gene": "DPYD",
+    "locus": "1:97450058 C>T",
+    "priority_tier": "high_review_priority",
+    "priority_score": 13.0,
+    "clinical_significance": "drug response",
+    "review_status": "reviewed by expert panel",
+    "condition_names": "Dihydropyrimidine dehydrogenase deficiency, Fluorouracil response, Hirschsprung disease, susceptibility to, 1, fluorouracil response - Toxicity, fluorouracil response - Other, capecitabine response - Toxicity, tegafur response - Toxicity, Inborn genetic diseases, DPYD-related disorder, Sarcoma, Lymphoma, Malignant tumor of esophagus, Lung cancer, Clear cell carcinoma of kidney, Familial pancreatic carcinoma, Colon adenocarcinoma, Colorectal cancer, Familial cancer of breast, Ovarian cancer, Thyroid cancer, nonmedullary, 1, Melanoma, Cholangiocarcinoma, Acute myeloid leukemia, Gastric cancer, Ovarian serous cystadenocarcinoma, Malignant tumor of urinary bladder, Nonpapillary renal cell carcinoma, Cervical cancer",
+    "conflict": "Yes",
+    "pharmgkb": "No",
+    "flags": [
+      "clinvar_matched",
+      "clinvar_conflict",
+      "clinvar_review_stars_3",
+      "submission_evidence_available"
+    ],
+    "rationale": [
+      "ClinVar significance 'drug response' contributed 3.0 points.",
+      "ClinVar review strength (3 stars) contributed 4.5 points.",
+      "Conflicting ClinVar interpretations increased review priority by 2.5 points.",
+      "Input impact 'HIGH' contributed 3.0 points."
+    ]
+  },
+  {
+    "record_id": "record-4",
+    "gene": "TP53",
+    "locus": "17:7674208 A>G",
+    "priority_tier": "review",
+    "priority_score": 10.0,
+    "clinical_significance": "Conflicting classifications of pathogenicity",
+    "review_status": "criteria provided, conflicting classifications",
+    "condition_names": "Li-Fraumeni syndrome 1, Li-Fraumeni syndrome",
+    "conflict": "Yes",
+    "pharmgkb": "No",
+    "flags": [
+      "clinvar_matched",
+      "clinvar_conflict",
+      "clinvar_review_stars_0",
+      "submission_evidence_available"
+    ],
+    "rationale": [
+      "ClinVar significance 'Conflicting classifications of pathogenicity' contributed 6.0 points.",
+      "ClinVar review strength (0 stars) contributed 0.0 points.",
+      "Conflicting ClinVar interpretations increased review priority by 2.5 points.",
+      "Input impact 'MODERATE' contributed 1.5 points."
+    ]
+  }
+]

@@ -123,14 +123,15 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Path]:
     """Execute the local ClinVar-first pipeline and write output artifacts."""
     input_path = Path(args.input)
     output_dir = Path(args.out_dir)
+    input_variants = parse_vcf(input_path, args.assembly)
 
     clinvar_index = load_clinvar_index(
         variant_summary_path=Path(args.variant_summary),
         conflict_summary_path=Path(args.conflict_summary) if args.conflict_summary else None,
         submission_summary_path=Path(args.submission_summary) if args.submission_summary else None,
+        target_variant_keys={variant.variant_key for variant in input_variants},
     )
 
-    input_variants = parse_vcf(input_path, args.assembly)
     annotated_variants = annotate_variants(input_variants, clinvar_index)
     if args.enable_pharmgkb:
         pharmgkb_client = PharmGKBClient()

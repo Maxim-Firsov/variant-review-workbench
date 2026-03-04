@@ -6,7 +6,9 @@ data/pharmgkb/cache/*
 !data/pharmgkb/cache/.gitkeep
 
 __pycache__/
+*.py[cod]
 .pytest_cache/
 .ruff_cache/
+.web_runtime/
 
 WORKPLAN.local.md

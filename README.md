@@ -231,6 +231,76 @@ python -m src.cli `
   --enable-pharmgkb
 ```
 
+## Demo Dataset
+
+The repository demo input is intentionally small but not arbitrary. It is designed to show different review situations in one run:
+
+- `BRCA1`
+  - strong pathogenic ClinVar match with conflict surfaced
+- `APC`
+  - strong pathogenic ClinVar match without conflict
+- `DPYD`
+  - drug-response-oriented ClinVar match that becomes especially useful in the PharmGKB-enabled run
+- `TP53`
+  - conflict-heavy variant that stays important but scores below the strongest pathogenic findings
+
+The demo file lives at:
+
+- `data/demo.vcf`
+
+On the current staged ClinVar snapshot, the base demo run produces:
+
+- `4` input variants
+- `4` ClinVar matches
+- `3` conflict-flagged findings
+- `3` `high_review_priority` findings
+- `1` `review` finding
+
+The PharmGKB-enabled demo run adds cached public PGx context and, on the current demo set, enriches all `4` variants.
+
+## Demo Walkthrough
+
+If you want the shortest possible path to understanding the project, inspect these generated artifacts in order:
+
+1. `outputs/demo_run/report.html`
+2. `outputs/demo_run/summary.json`
+3. `outputs/demo_run/prioritized_variants.json`
+4. `outputs/demo_run_pgx/report.html`
+
+What the base demo should immediately show:
+
+- the hero summary confirms all four demo variants matched ClinVar
+- the top findings section shows both conflict-flagged and non-conflict findings
+- the conflict review queue is not empty, which demonstrates why the workbench is useful
+- the rationale text explains why `BRCA1`, `APC`, and `DPYD` outrank `TP53`
+
+What the PharmGKB demo should immediately show:
+
+- the same ClinVar-first queue remains intact
+- optional PGx context adds signal without replacing the core ClinVar interpretation layer
+- the output provenance records both ClinVar and PharmGKB sources
+
+## Demo Screenshots
+
+Base report hero and top findings:
+
+![Base report hero and top findings](data/screenshots/demo_report_hero_top_findings.png)
+
+This view shows the high-level review summary plus the ranked findings that make the demo useful immediately:
+
+- `BRCA1` as a high-priority conflict-flagged finding
+- `APC` as a strong non-conflict pathogenic finding
+- `DPYD` as a drug-response-oriented finding that becomes more interesting in the PharmGKB-enabled run
+
+Base report conflict queue and variant table:
+
+![Base report conflict queue and variant table](data/screenshots/demo_report_conflict_queue_variant_table.png)
+
+This view shows the workbench behaving like an actual triage tool rather than a simple annotation dump:
+
+- the conflict review queue is populated
+- the variant table exposes tier, score, ClinVar significance, review status, conflict flag, and workflow flags together
+
 ## Ranking Approach
 
 Ranking is heuristic and intentionally transparent.
@@ -337,7 +407,7 @@ Implemented and tested:
 
 Current automated test count:
 
-- `43` passing unit tests
+- `45` passing unit tests
 
 ## Limitations
 

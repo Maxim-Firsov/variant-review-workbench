@@ -8,11 +8,46 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from src.cli import run_pipeline
+from src.cli import build_parser, run_pipeline
 from src.models import GenomeAssembly
 
 
 class CliTests(unittest.TestCase):
+    def test_build_parser_accepts_supported_assembly(self) -> None:
+        parser = build_parser()
+
+        args = parser.parse_args(
+            [
+                "--input",
+                "input.vcf",
+                "--assembly",
+                "GRCh38",
+                "--variant-summary",
+                "variant_summary.txt.gz",
+                "--out-dir",
+                "outputs",
+            ]
+        )
+
+        self.assertEqual(args.assembly, GenomeAssembly.GRCH38)
+
+    def test_build_parser_rejects_unsupported_assembly(self) -> None:
+        parser = build_parser()
+
+        with self.assertRaises(SystemExit):
+            parser.parse_args(
+                [
+                    "--input",
+                    "input.vcf",
+                    "--assembly",
+                    "hg19",
+                    "--variant-summary",
+                    "variant_summary.txt.gz",
+                    "--out-dir",
+                    "outputs",
+                ]
+            )
+
     def test_run_pipeline_writes_expected_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

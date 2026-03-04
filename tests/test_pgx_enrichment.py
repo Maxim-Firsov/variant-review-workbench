@@ -87,6 +87,31 @@ class PharmGKBEnrichmentTests(unittest.TestCase):
         self.assertEqual(data, [])
         self.assertFalse(cached)
 
+    def test_client_caches_no_result_responses(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            session = Mock()
+            response = Mock()
+            response.status_code = 404
+            response.json.return_value = {
+                "status": "fail",
+                "data": {"errors": [{"message": "No results matching criteria."}]},
+            }
+            session.get.return_value = response
+
+            client = PharmGKBClient(
+                cache_dir=Path(tmpdir),
+                session=session,
+                rate_limit_delay_seconds=0.0,
+            )
+            first_data, first_cached = client.fetch_gene("NOTREAL")
+            second_data, second_cached = client.fetch_gene("NOTREAL")
+
+        self.assertEqual(first_data, [])
+        self.assertFalse(first_cached)
+        self.assertEqual(second_data, [])
+        self.assertTrue(second_cached)
+        self.assertEqual(session.get.call_count, 1)
+
     def test_enrich_annotated_variant_populates_pharmgkb_annotation(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             session = Mock()

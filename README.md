@@ -1,44 +1,278 @@
 # Variant Review Workbench
 
-ClinVar-first bioinformatics project scaffold for a research-oriented small-variant triage and reporting tool.
+ClinVar-first small-variant triage and reporting tool for research-oriented review workflows.
 
-## Goal
+The workbench accepts a VCF, matches variants against a local ClinVar snapshot, highlights conflicting interpretations, optionally enriches findings with PharmGKB, ranks the review queue, and emits analyst-friendly HTML and machine-readable outputs.
 
-Build a workbench that accepts a VCF, annotates variants against a local ClinVar snapshot, enriches results with optional PharmGKB data, ranks findings for review, and emits analyst-friendly reports.
+## Problem Statement
 
-## Local Data Layout
+VCFs are compact and machine-friendly, but they are not ideal review artifacts. Analysts often need to answer a narrower question first:
+
+- Which variants matched a known ClinVar record?
+- Which findings have conflicting interpretations?
+- Which records should be reviewed first?
+- Which variants may have pharmacogenomics context worth surfacing?
+
+This repository focuses on that gap. It is not a full annotation platform or a clinical interpretation engine. It is a reproducible, inspectable triage workbench for small-variant review.
+
+## What The Tool Does
+
+- reads `.vcf` and `.vcf.gz` inputs
+- normalizes one record per alternate allele
+- matches variants to a local ClinVar snapshot using assembly-aware coordinate and allele keys
+- attaches conflict and submission context when available
+- optionally enriches variants with PharmGKB gene, variant, clinical annotation, and guideline data
+- ranks findings with transparent heuristics
+- writes HTML, JSON, CSV, and run metadata outputs
+
+## Product Boundary
+
+This project is:
+
+- a research triage workbench
+- a reproducible annotation and reporting tool
+- a portfolio-quality bioinformatics-adjacent engineering project
+
+This project is not:
+
+- a clinical decision support system
+- an ACMG classifier
+- a star-allele caller
+- a treatment recommendation engine
+
+## Architecture
 
 ```text
-data/
-|-- clinvar/
-|   |-- raw/
-|   `-- processed/
-|-- pharmgkb/
-|   `-- cache/
-|-- references/
-|   `-- external_sources.md
-|-- gene_panels/
-`-- demo.vcf
+VCF / VCF.GZ
+    |
+    v
+VCF parser
+    |
+    v
+Normalized InputVariant records
+    |
+    v
+ClinVar exact-match index
+    |
+    +--> conflict attachment
+    |
+    +--> submission evidence attachment
+    |
+    v
+AnnotatedVariant records
+    |
+    +--> optional PharmGKB enrichment
+    |
+    v
+RankedVariant records
+    |
+    +--> HTML report
+    +--> prioritized_variants.json
+    +--> annotated_variants.csv
+    +--> summary.json
+    `--> run_metadata.json
 ```
 
-## Staged Public Data
+## Repository Layout
 
-The following ClinVar snapshot files have been placed under `data/clinvar/raw/`:
+```text
+variant-review-workbench/
+|-- src/
+|   |-- annotator.py
+|   |-- cli.py
+|   |-- clinvar_index.py
+|   |-- models.py
+|   |-- pgx_enrichment.py
+|   |-- ranker.py
+|   |-- report_builder.py
+|   `-- vcf_parser.py
+|-- templates/
+|   `-- report.html.j2
+|-- data/
+|   |-- clinvar/
+|   |-- pharmgkb/
+|   |-- references/
+|   `-- demo.vcf
+|-- tests/
+|-- README.md
+`-- pyproject.toml
+```
+
+## Inputs
+
+### Required
+
+- input VCF or VCF.GZ
+- ClinVar `variant_summary.txt.gz`
+- reference assembly: `GRCh37` or `GRCh38`
+
+### Optional
+
+- `summary_of_conflicting_interpretations.txt`
+- `submission_summary.txt.gz`
+- PharmGKB enrichment via `--enable-pharmgkb`
+
+## Outputs
+
+Each run writes:
+
+- `annotated_variants.csv`
+  - stable CSV export of the ranked table rows
+- `prioritized_variants.json`
+  - machine-readable prioritized variant records
+- `summary.json`
+  - aggregate run metrics
+- `run_metadata.json`
+  - reproducibility metadata, source provenance, and counts
+- `report.html`
+  - analyst-facing HTML report with top findings, conflicts, methods, and limitations
+
+## Setup
+
+```powershell
+python -m pip install -r requirements.txt
+```
+
+## Example Usage
+
+### Base ClinVar Run
+
+```powershell
+python -m src.cli `
+  --input data\demo.vcf `
+  --assembly GRCh38 `
+  --variant-summary data\clinvar\raw\variant_summary.txt.gz `
+  --conflict-summary data\clinvar\raw\summary_of_conflicting_interpretations.txt `
+  --submission-summary data\clinvar\raw\submission_summary.txt.gz `
+  --out-dir outputs\demo_run
+```
+
+### Run With PharmGKB Enrichment
+
+```powershell
+python -m src.cli `
+  --input data\demo.vcf `
+  --assembly GRCh38 `
+  --variant-summary data\clinvar\raw\variant_summary.txt.gz `
+  --conflict-summary data\clinvar\raw\summary_of_conflicting_interpretations.txt `
+  --submission-summary data\clinvar\raw\submission_summary.txt.gz `
+  --out-dir outputs\demo_run_pgx `
+  --enable-pharmgkb
+```
+
+## Ranking Approach
+
+Ranking is heuristic and intentionally transparent.
+
+The current score uses:
+
+- ClinVar clinical significance
+- ClinVar review strength
+- conflict surfacing
+- input impact severity
+- optional PharmGKB context
+- gene-symbol mismatch penalty
+
+The system emits a numeric score, a priority tier, and a rationale list for every ranked variant.
+
+Priority tiers:
+
+- `high_review_priority`
+- `review`
+- `context_only`
+
+## Example Review Questions This Tool Helps Answer
+
+- Which variants have strong ClinVar support and should be reviewed first?
+- Which findings are conflict-flagged and require closer inspection?
+- Which unmatched records remain context-only?
+- Which variants have optional PGx context worth surfacing for downstream review?
+
+## Data Sources
+
+### ClinVar
+
+Used as the core local reference layer for variant matching and conflict attachment.
+
+- FTP root: `https://ftp.ncbi.nlm.nih.gov/pub/clinvar/`
+- maintenance and release notes: `https://www.ncbi.nlm.nih.gov/clinvar/docs/maintenance_use/`
+- FTP primer: `https://www.ncbi.nlm.nih.gov/clinvar/docs/ftp_primer/`
+
+Primary files used by this workbench:
 
 - `variant_summary.txt.gz`
-- `submission_summary.txt.gz`
 - `summary_of_conflicting_interpretations.txt`
-- `clinvar_grch38.vcf.gz`
-- `clinvar_grch37.vcf.gz`
+- `submission_summary.txt.gz`
 
-These raw files are ignored by git so the repository stays publishable.
+### PharmGKB / ClinPGx
 
-## Public Endpoints
+Used only as optional enrichment.
 
-- ClinVar source metadata and file URLs are defined in `scripts/fetch_clinvar_snapshot.py`.
-- PharmGKB API endpoints are defined in `src/pgx_enrichment.py`.
-- Human-readable source links are listed in `data/references/external_sources.md`.
+- API base: `https://api.pharmgkb.org/v1`
+- docs: `https://api.pharmgkb.org/`
 
-## Status
+Current integration uses stable public queries for:
 
-Initial repository scaffold is complete and external source files are staged for implementation work.
+- gene lookup by symbol
+- variant lookup by symbol
+- clinical annotations by gene symbol
+- guideline annotations by gene symbol
+
+### Source Reference Index
+
+Human-readable source links are also maintained in:
+
+- [external_sources.md](C:/Code/GitPortfolio/variant-review-workbench/data/references/external_sources.md)
+
+## Licensing And Attribution
+
+This repository contains code written for the workbench itself. Upstream datasets and APIs remain governed by their respective providers.
+
+- ClinVar data usage and redistribution expectations should be reviewed through NCBI documentation.
+- PharmGKB API usage should follow PharmGKB terms and public API guidance.
+
+Users of this repository should verify current upstream licensing and attribution requirements before redistributing derived datasets or packaging source snapshots.
+
+## Testing
+
+Run the current unit suite:
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
+The implemented system currently has coverage for:
+
+- VCF parsing
+- ClinVar index loading
+- conflict and submission attachment
+- annotation behavior
+- ranking behavior
+- report generation
+- CLI orchestration
+- PharmGKB caching, failure handling, and integration
+
+## Current Status
+
+Implemented and tested:
+
+- ClinVar-first local annotation pipeline
+- HTML report generation
+- CSV and JSON exports
+- optional PharmGKB enrichment
+- end-to-end CLI orchestration
+
+Current automated test count:
+
+- `39` passing unit tests
+
+## Limitations
+
+- matching is exact and assembly-aware, but does not yet perform deeper variant normalization beyond the current key strategy
+- unmatched variants are intentionally left as context-only rather than force-interpreted
+- PharmGKB enrichment is optional and network-dependent when enabled
+- this is a focused small-variant review tool, not a full-scale annotation framework
+
+## Disclaimer
+
+This tool is for research triage and educational review only. It is not intended for diagnosis, treatment selection, or other clinical decision-making.

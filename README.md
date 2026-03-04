@@ -189,6 +189,47 @@ The machine-readable outputs are intentionally separate from the human-oriented 
 python -m pip install -r requirements.txt
 ```
 
+## Web Interface
+
+The repository also includes a thin Flask web layer that reuses the same backend pipeline as the CLI.
+
+Local startup:
+
+```powershell
+flask --app src.web.app run --host 127.0.0.1 --port 5000
+```
+
+Hosted/runtime environment variables:
+
+- `VRW_JOB_EXECUTION_MODE`
+- `VRW_MAX_UPLOAD_MB`
+- `VRW_UPLOAD_ROOT`
+- `VRW_RUN_OUTPUT_ROOT`
+- `VRW_RUN_RETENTION_HOURS`
+- `VRW_CLINVAR_RAW_DIR`
+- `VRW_CLINVAR_PROCESSED_DIR`
+- `VRW_CLINVAR_VARIANT_SUMMARY`
+- `VRW_CLINVAR_CONFLICT_SUMMARY`
+- `VRW_CLINVAR_SUBMISSION_SUMMARY`
+- `VRW_CLINVAR_CACHE_DB`
+- `VRW_DISABLE_CLINVAR_CACHE`
+- optional `VRW_DATA_ROOT`
+
+Recommended hosted disk layout:
+
+- uploads: `/var/data/uploads`
+- run outputs: `/var/data/runs`
+- ClinVar raw files: `/var/data/clinvar/raw`
+- ClinVar cache: `/var/data/clinvar/processed/clinvar_lookup_cache.sqlite3`
+
+### Web Guardrails
+
+- the web app is a convenience interface over the same research pipeline, not a clinical product
+- upload acceptance is limited to `.vcf` and `.vcf.gz` files and the request size cap defaults to `25` MB
+- the hosted demo stores submitted files in per-run workspaces and removes stale workspaces opportunistically after the configured retention window
+- the hosted demo is not a PHI-grade privacy boundary, so protected health information should not be uploaded
+- `/healthz` is intended to return healthy only after the configured ClinVar source files and cache parent directories exist on disk
+
 ## Example Usage
 
 ### Base ClinVar Run
@@ -449,10 +490,11 @@ Implemented and tested:
 - CSV and JSON exports
 - optional PharmGKB enrichment
 - end-to-end CLI orchestration
+- thin Flask web interface with homepage, docs page, per-run uploads, report embedding, and exports
 
 Current automated test count:
 
-- `46` passing unit tests
+- `66` passing unit tests
 
 ## Limitations
 
@@ -464,3 +506,5 @@ Current automated test count:
 ## Disclaimer
 
 This tool is for research triage and educational review only. It is not intended for diagnosis, treatment selection, or other clinical decision-making.
+
+The hosted web demo is also not a production privacy boundary. Do not submit protected health information or rely on uploaded-run retention as a formal data-governance control.

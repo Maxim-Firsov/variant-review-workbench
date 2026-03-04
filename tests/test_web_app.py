@@ -176,6 +176,8 @@ class WebAppTests(unittest.TestCase):
         self.assertIn(b"Run Setup", response.data)
         self.assertIn(b'enctype="multipart/form-data"', response.data)
         self.assertIn(b"3 Formats", response.data)
+        self.assertIn(b"Research-use only.", response.data)
+        self.assertIn(b"25 MB", response.data)
 
     def test_docs_page_renders_project_context(self) -> None:
         response = self.client.get("/docs")
@@ -183,6 +185,7 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Variant Review Workbench", response.data)
         self.assertIn(b"Current browser workflow", response.data)
+        self.assertIn(b"Hosted demo guardrails", response.data)
 
     def test_health_check_returns_ok(self) -> None:
         response = self.client.get("/healthz")
@@ -278,6 +281,7 @@ class WebAppTests(unittest.TestCase):
         self.assertIn(b"Export HTML", response.data)
         self.assertIn(b"Export JSON", response.data)
         self.assertIn(b"Export Markdown", response.data)
+        self.assertIn(b"Non-clinical output only.", response.data)
 
     def test_status_endpoint_returns_job_result(self) -> None:
         create_response = self.client.post(
@@ -359,6 +363,64 @@ class WebAppTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn(b"Uploaded file must end with .vcf or .vcf.gz.", response.data)
+
+    def test_create_run_rejects_non_vcf_contents_with_vcf_extension(self) -> None:
+        response = self.client.post(
+            "/runs",
+            data={
+                "assembly": "GRCh38",
+                "export_format": "json",
+                "vcf_file": (io.BytesIO(b"plain text"), "notes.vcf"),
+            },
+            content_type="multipart/form-data",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(b"Uploaded file does not appear to be a VCF.", response.data)
+
+    def test_create_run_rejects_invalid_gzip_payload(self) -> None:
+        response = self.client.post(
+            "/runs",
+            data={
+                "assembly": "GRCh38",
+                "export_format": "json",
+                "vcf_file": (io.BytesIO(b"not gzip data"), "notes.vcf.gz"),
+            },
+            content_type="multipart/form-data",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(b"Uploaded .vcf.gz file is not gzip-compressed.", response.data)
+
+    def test_create_run_rejects_request_over_upload_limit(self) -> None:
+        small_limit_app = create_app(
+            {
+                "TESTING": True,
+                "JOB_EXECUTION_MODE": "inline",
+                "MAX_UPLOAD_MB": 1,
+                "MAX_CONTENT_LENGTH": 1024 * 1024,
+                "UPLOAD_ROOT": str(Path(self.tmpdir.name) / "small_uploads"),
+                "RUN_OUTPUT_ROOT": str(Path(self.tmpdir.name) / "small_runs"),
+                "CLINVAR_VARIANT_SUMMARY": str(self.variant_summary),
+                "CLINVAR_CONFLICT_SUMMARY": str(self.conflict_summary),
+                "CLINVAR_SUBMISSION_SUMMARY": str(self.submission_summary),
+                "CLINVAR_CACHE_DB": str(self.cache_db),
+                "DISABLE_CLINVAR_CACHE": False,
+            }
+        )
+
+        response = small_limit_app.test_client().post(
+            "/runs",
+            data={
+                "assembly": "GRCh38",
+                "export_format": "json",
+                "vcf_file": (io.BytesIO(self._demo_vcf_bytes() + (b"A" * (1024 * 1024))), "demo.vcf"),
+            },
+            content_type="multipart/form-data",
+        )
+
+        self.assertEqual(response.status_code, 413)
+        self.assertIn(b"Uploaded file exceeds the 1 MB limit.", response.data)
 
     def test_uploaded_file_is_isolated_in_run_workspace(self) -> None:
         response = self.client.post(

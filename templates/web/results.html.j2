@@ -38,6 +38,10 @@
             The job is queued. This page is polling the status endpoint.
           {% endif %}
         </p>
+        <p class="footer-note" style="margin-top: 18px;">
+          Non-clinical output only. Uploaded data is retained under the configured cleanup window of
+          {{ web_scope.run_retention_hours }} hour{% if web_scope.run_retention_hours != 1 %}s{% endif %}.
+        </p>
       </div>
     </div>
   </section>
@@ -143,6 +147,7 @@
         <li>Export controls will remain visible after the job succeeds.</li>
         <li>Provenance and artifacts stay bound to the run workspace.</li>
       </ul>
+      <p class="footer-note">Do not upload protected health information or rely on this page as a clinical system of record.</p>
     </section>
   {% endif %}
 {% endblock %}

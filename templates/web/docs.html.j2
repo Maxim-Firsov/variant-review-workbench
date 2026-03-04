@@ -54,4 +54,26 @@
     </div>
     <p class="footer-note">The CLI remains the canonical engine. The browser interface is intentionally additive and non-destructive.</p>
   </section>
+
+  <section class="panel" style="margin-top: 24px; padding: 28px;">
+    <div class="panel-grid">
+      <div>
+        <h2>Hosted demo guardrails</h2>
+        <ul>
+          <li>Research-use only, with no clinical decision support claims.</li>
+          <li>Uploads are capped at {{ web_scope.max_upload_mb }} MB per request.</li>
+          <li>Submitted files are retained in run-local storage for roughly {{ web_scope.run_retention_hours }} hour{% if web_scope.run_retention_hours != 1 %}s{% endif %}.</li>
+          <li>Do not submit protected health information or production patient data.</li>
+        </ul>
+      </div>
+      <div>
+        <h2>Deployment notes</h2>
+        <ul>
+          <li>Persistent disk is intended for ClinVar cache reuse and temporary run workspaces.</li>
+          <li>The `/healthz` endpoint should be used only after required ClinVar files exist on disk.</li>
+          <li>Hosted runs share backend code with the CLI, but the site is not a multi-tenant privacy boundary.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
 {% endblock %}

@@ -16,8 +16,9 @@
           assembly, and choose whether you want a browser report or a direct export.
         </p>
         <p>
-          Upload handling, isolated run workspaces, and shared pipeline execution are now live. The next phase
-          will expose browser-side export controls over the generated artifacts.
+          Uploaded files are stored in isolated per-run directories and removed opportunistically after
+          {{ web_scope.run_retention_hours }} hour{% if web_scope.run_retention_hours != 1 %}s{% endif %}.
+          Avoid submitting sensitive or patient-identifying data to the hosted demo.
         </p>
         <div class="actions">
           <a class="button" href="#run-setup">Start a run</a>
@@ -37,7 +38,7 @@
       <div class="fact-card">
         <strong>Input</strong>
         <span class="metric">VCF</span>
-        <p>Accepts `.vcf` and `.vcf.gz` uploads and stores them in per-run workspaces.</p>
+        <p>Accepts `.vcf` and `.vcf.gz` uploads up to {{ web_scope.max_upload_mb }} MB per submission.</p>
       </div>
       <div class="fact-card">
         <strong>Execution</strong>
@@ -88,7 +89,7 @@
             <span>Enable PharmGKB enrichment</span>
           </label>
           <label class="check" for="mode_export_only">
-            <input id="mode_export_only" name="mode" type="checkbox" value="export_only">
+            <input id="mode_export_only" name="mode" type="checkbox" value="export_only" data-export-only>
             <span>Skip browser report and go straight to export</span>
           </label>
         </div>
@@ -101,7 +102,13 @@
           <option value="html">HTML</option>
           <option value="md">Markdown</option>
         </select>
-        <small>Only used when “skip browser report” is selected.</small>
+        <small>Only used when "skip browser report" is selected.</small>
+      </div>
+
+      <div class="notice">
+        <strong>Usage boundary</strong>
+        <p>This interface is for research review and portfolio demonstration only. Do not treat the output as diagnosis, treatment guidance, or production-grade data handling.</p>
+        <p>Uploads are stored on the server for the active run and may persist until the retention window expires.</p>
       </div>
 
       <div class="actions">
@@ -111,7 +118,7 @@
         </button>
         <a class="button secondary" href="{{ url_for('docs') }}">Read project details</a>
       </div>
-      <p class="footer-note">Research-use only. The browser layer preserves the existing non-clinical scope and artifact provenance model.</p>
+      <p class="footer-note">Research-use only. The browser layer preserves the existing non-clinical scope, shared backend logic, and artifact provenance model.</p>
     </form>
   </section>
 {% endblock %}

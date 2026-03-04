@@ -7,6 +7,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from flask import Flask, Response, abort, jsonify, redirect, render_template, request, url_for
+from werkzeug.exceptions import RequestEntityTooLarge
 
 from ..app_service import PipelineUsageError, run_pipeline_with_result
 from ..models import GenomeAssembly
@@ -147,6 +148,27 @@ def create_app(test_config: dict | None = None) -> Flask:
         store=app.extensions["job_store"],
         execution_mode=app.config["JOB_EXECUTION_MODE"],
     )
+
+    @app.context_processor
+    def inject_web_scope() -> dict[str, object]:
+        return {
+            "web_scope": {
+                "max_upload_mb": int(app.config["MAX_UPLOAD_MB"]),
+                "run_retention_hours": int(app.config["RUN_RETENTION_HOURS"]),
+            }
+        }
+
+    @app.errorhandler(RequestEntityTooLarge)
+    def handle_request_too_large(_: RequestEntityTooLarge) -> tuple[str, int]:
+        return (
+            render_template(
+                "web/home.html.j2",
+                page_title="Variant Review Workbench",
+                current_page="home",
+                form_error=f"Uploaded file exceeds the {app.config['MAX_UPLOAD_MB']} MB limit.",
+            ),
+            413,
+        )
 
     @app.get("/")
     def home() -> str:

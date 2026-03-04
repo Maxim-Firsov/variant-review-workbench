@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import gzip
+import io
 import shutil
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -13,6 +15,9 @@ from werkzeug.utils import secure_filename
 
 class UploadValidationError(ValueError):
     """Raised when a web upload cannot be accepted safely."""
+
+
+_VCF_HEADER_PREFIXES = ("##fileformat=VCF", "#CHROM\t")
 
 
 @dataclass(slots=True)
@@ -46,6 +51,33 @@ def _validate_upload_filename(filename: str) -> str:
     return safe_name
 
 
+def _read_upload_prefix(upload: FileStorage, size: int = 4096) -> bytes:
+    stream = upload.stream
+    current_position = stream.tell()
+    prefix = stream.read(size)
+    stream.seek(current_position)
+    return prefix
+
+
+def _looks_like_vcf(upload: FileStorage, filename: str) -> None:
+    prefix = _read_upload_prefix(upload)
+    lowered = filename.lower()
+
+    if lowered.endswith(".vcf.gz"):
+        if not prefix.startswith(b"\x1f\x8b"):
+            raise UploadValidationError("Uploaded .vcf.gz file is not gzip-compressed.")
+        try:
+            with gzip.GzipFile(fileobj=io.BytesIO(prefix)) as handle:
+                header = handle.read(512).decode("utf-8", errors="ignore")
+        except OSError as error:
+            raise UploadValidationError("Uploaded .vcf.gz file could not be read as gzip data.") from error
+    else:
+        header = prefix.decode("utf-8", errors="ignore")
+
+    if not any(marker in header for marker in _VCF_HEADER_PREFIXES):
+        raise UploadValidationError("Uploaded file does not appear to be a VCF.")
+
+
 def create_run_workspace(*, job_id: str, upload_root: Path, run_output_root: Path) -> RunWorkspace:
     """Create isolated upload and output directories for a submitted run."""
     run_root = run_output_root / job_id
@@ -65,8 +97,9 @@ def create_run_workspace(*, job_id: str, upload_root: Path, run_output_root: Pat
 def save_uploaded_vcf(*, upload: FileStorage | None, workspace: RunWorkspace) -> RunWorkspace:
     """Persist an uploaded VCF into the run-specific upload directory."""
     safe_name = _validate_upload_filename(upload.filename if upload is not None else "")
-    destination = workspace.upload_dir / safe_name
     assert upload is not None
+    _looks_like_vcf(upload, safe_name)
+    destination = workspace.upload_dir / safe_name
     upload.save(destination)
     return RunWorkspace(
         job_id=workspace.job_id,

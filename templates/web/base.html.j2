@@ -15,6 +15,10 @@
           <a href="{{ url_for('docs') }}" class="{% if current_page == 'docs' %}active{% endif %}">ReadMe</a>
         </nav>
       </header>
+      <section class="scope-banner" aria-label="Usage scope">
+        <strong>Research-use only.</strong>
+        <span>This hosted interface is a reproducible review demo, not a clinical workflow or PHI-grade platform.</span>
+      </section>
       {% block content %}{% endblock %}
     </div>
     <script>

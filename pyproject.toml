@@ -1,0 +1,22 @@
+[project]
+name = "variant-review-workbench"
+version = "0.1.0"
+description = "ClinVar-first small-variant triage and reporting workbench"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "Jinja2>=3.1,<4.0",
+  "pandas>=2.2,<4.0",
+  "pydantic>=2.8,<3.0",
+  "requests>=2.32,<3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.2,<9.0",
+  "ruff>=0.6,<1.0",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"

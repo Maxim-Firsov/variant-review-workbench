@@ -1,0 +1,10 @@
+data/clinvar/raw/*
+!data/clinvar/raw/.gitkeep
+data/clinvar/processed/*
+!data/clinvar/processed/.gitkeep
+data/pharmgkb/cache/*
+!data/pharmgkb/cache/.gitkeep
+
+__pycache__/
+.pytest_cache/
+.ruff_cache/

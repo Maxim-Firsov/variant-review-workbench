@@ -4,8 +4,10 @@ import csv
 import gzip
 import io
 import tempfile
+import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from src.web import create_app
 
@@ -339,6 +341,16 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.get_json(), {"error": "run not found"})
 
+    def test_report_route_returns_404_for_missing_run(self) -> None:
+        response = self.client.get("/runs/run-missing/report")
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_export_route_returns_404_for_missing_run(self) -> None:
+        response = self.client.get("/runs/run-missing/export/json")
+
+        self.assertEqual(response.status_code, 404)
+
     def test_create_run_rejects_missing_upload(self) -> None:
         response = self.client.post(
             "/runs",
@@ -487,6 +499,71 @@ class WebAppTests(unittest.TestCase):
         self.assertIn("text/markdown", markdown_response.content_type)
         self.assertIn(b"# Variant Review Report", markdown_response.data)
         self.assertIn(b"## Top Findings", markdown_response.data)
+
+    def test_export_route_returns_404_for_unsupported_format(self) -> None:
+        create_response = self.client.post(
+            "/runs",
+            data={
+                "assembly": "GRCh38",
+                "export_format": "json",
+                "vcf_file": (io.BytesIO(self._demo_vcf_bytes()), "demo.vcf"),
+            },
+            content_type="multipart/form-data",
+        )
+        run_id = create_response.headers["Location"].rstrip("/").split("/")[-1]
+
+        response = self.client.get(f"/runs/{run_id}/export/xml")
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_threaded_failed_job_surfaces_status_and_results_page(self) -> None:
+        threaded_app = create_app(
+            {
+                "TESTING": True,
+                "JOB_EXECUTION_MODE": "threaded",
+                "UPLOAD_ROOT": str(Path(self.tmpdir.name) / "threaded_uploads"),
+                "RUN_OUTPUT_ROOT": str(Path(self.tmpdir.name) / "threaded_runs"),
+                "RUN_RETENTION_HOURS": 1,
+                "CLINVAR_VARIANT_SUMMARY": str(self.variant_summary),
+                "CLINVAR_CONFLICT_SUMMARY": str(self.conflict_summary),
+                "CLINVAR_SUBMISSION_SUMMARY": str(self.submission_summary),
+                "CLINVAR_CACHE_DB": str(self.cache_db),
+                "DISABLE_CLINVAR_CACHE": False,
+            }
+        )
+        client = threaded_app.test_client()
+
+        with patch("src.web.app.run_pipeline_with_result", side_effect=RuntimeError("synthetic pipeline failure")):
+            create_response = client.post(
+                "/runs",
+                data={
+                    "assembly": "GRCh38",
+                    "export_format": "json",
+                    "vcf_file": (io.BytesIO(self._demo_vcf_bytes()), "demo.vcf"),
+                },
+                content_type="multipart/form-data",
+            )
+
+        self.assertEqual(create_response.status_code, 302)
+        run_id = create_response.headers["Location"].rstrip("/").split("/")[-1]
+
+        status_payload = None
+        for _ in range(100):
+            status_response = client.get(f"/runs/{run_id}/status")
+            status_payload = status_response.get_json()
+            assert status_payload is not None
+            if status_payload["status"] == "failed":
+                break
+            time.sleep(0.02)
+
+        assert status_payload is not None
+        self.assertEqual(status_payload["status"], "failed")
+        self.assertEqual(status_payload["error"], "synthetic pipeline failure")
+
+        results_response = client.get(f"/runs/{run_id}")
+        self.assertEqual(results_response.status_code, 200)
+        self.assertIn(b"Run failed", results_response.data)
+        self.assertIn(b"synthetic pipeline failure", results_response.data)
 
 
 if __name__ == "__main__":

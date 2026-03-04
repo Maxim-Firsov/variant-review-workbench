@@ -4,16 +4,33 @@
   <section class="hero">
     <h1>Results Shell</h1>
     <p>
-      This placeholder page establishes the web route shape for run results. It intentionally does not execute
-      the pipeline yet.
+      This page now uses the web job model. Real pipeline execution is still not wired yet, but submissions are
+      created, tracked, and exposed through a deterministic status endpoint.
     </p>
     <div class="meta-card">
       <strong>Run identifier</strong>
       <div class="mono">{{ run_id }}</div>
-      {% if export_format %}
-        <p>Requested export preference: <span class="mono">{{ export_format }}</span></p>
+      <p>Status: <span class="mono">{{ job.status }}</span></p>
+      <p>Mode: <span class="mono">{{ job.mode }}</span></p>
+      {% if job.export_format %}
+        <p>Requested export preference: <span class="mono">{{ job.export_format }}</span></p>
       {% endif %}
     </div>
+  </section>
+
+  <section class="panel" style="margin-top: 24px; padding: 28px;">
+    <h2>Job status</h2>
+    <p>
+      Pollable status endpoint:
+      <span class="mono">{{ url_for('run_status', run_id=run_id) }}</span>
+    </p>
+    {% if job.result %}
+      <p>{{ job.result.message }}</p>
+    {% elif job.error %}
+      <p>Job failed: <span class="mono">{{ job.error }}</span></p>
+    {% else %}
+      <p>The job has been accepted and is waiting for completion.</p>
+    {% endif %}
   </section>
 
   <section class="panel" style="margin-top: 24px; padding: 28px;">

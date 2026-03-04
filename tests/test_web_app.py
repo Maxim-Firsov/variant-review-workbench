@@ -7,7 +7,7 @@ from src.web import create_app
 
 class WebAppTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.app = create_app()
+        self.app = create_app({"TESTING": True, "JOB_EXECUTION_MODE": "inline"})
         self.client = self.app.test_client()
 
     def test_home_page_renders_form_shell(self) -> None:
@@ -28,7 +28,7 @@ class WebAppTests(unittest.TestCase):
         response = self.client.get("/healthz")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.get_json(), {"status": "ok"})
+        self.assertEqual(response.get_json(), {"status": "ok", "job_execution_mode": "inline"})
 
     def test_create_run_redirects_to_results_shell(self) -> None:
         response = self.client.post(
@@ -47,15 +47,46 @@ class WebAppTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertIn("/runs/export-", response.headers["Location"])
-        self.assertIn("export_format=md", response.headers["Location"])
+        redirected = self.client.get(response.headers["Location"])
+        self.assertEqual(redirected.status_code, 200)
+        self.assertIn(b"export_only", redirected.data)
 
     def test_results_page_renders_placeholder(self) -> None:
-        response = self.client.get("/runs/run-demo1234?export_format=html")
+        create_response = self.client.post(
+            "/runs",
+            data={"assembly": "GRCh38", "export_format": "html", "enable_pharmgkb": "true"},
+        )
+        response = self.client.get(create_response.headers["Location"])
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Results Shell", response.data)
-        self.assertIn(b"run-demo1234", response.data)
+        self.assertIn(b"Status:", response.data)
         self.assertIn(b"html", response.data)
+        self.assertIn(b"Execution is stubbed in Phase 3", response.data)
+
+    def test_status_endpoint_returns_job_result(self) -> None:
+        create_response = self.client.post(
+            "/runs",
+            data={"assembly": "GRCh37", "export_format": "json"},
+        )
+        run_path = create_response.headers["Location"]
+        run_id = run_path.rstrip("/").split("/")[-1]
+
+        response = self.client.get(f"/runs/{run_id}/status")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        assert payload is not None
+        self.assertEqual(payload["job_id"], run_id)
+        self.assertEqual(payload["status"], "succeeded")
+        self.assertEqual(payload["metadata"]["assembly"], "GRCh37")
+        self.assertEqual(payload["result"]["mode"], "report")
+
+    def test_status_endpoint_returns_404_for_missing_run(self) -> None:
+        response = self.client.get("/runs/run-missing/status")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.get_json(), {"error": "run not found"})
 
 
 if __name__ == "__main__":

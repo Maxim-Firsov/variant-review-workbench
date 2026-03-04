@@ -85,6 +85,8 @@ class ReportBuilderTests(unittest.TestCase):
         self.assertEqual(context["summary"]["variant_count"], 3)
         self.assertEqual(context["summary"]["clinvar_matched_count"], 2)
         self.assertEqual(context["summary"]["conflict_count"], 1)
+        self.assertEqual(context["summary_artifact"]["input_variant_count"], 3)
+        self.assertEqual(context["summary_artifact"]["conflict_flagged_count"], 1)
         self.assertEqual(len(context["top_findings"]), 3)
         self.assertEqual(len(context["conflict_rows"]), 1)
         self.assertEqual(context["variant_rows"][0]["gene"], "TP53")

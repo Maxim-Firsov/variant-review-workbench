@@ -1,10 +1,12 @@
 {
-  "variant_count": 4,
+  "schema_version": "1.0",
+  "artifact_type": "summary",
+  "input_variant_count": 4,
   "clinvar_matched_count": 4,
   "clinvar_unmatched_count": 0,
-  "conflict_count": 3,
-  "pharmgkb_count": 0,
-  "tier_counts": {
+  "conflict_flagged_count": 3,
+  "pharmgkb_enriched_count": 0,
+  "review_priority_tier_counts": {
     "high_review_priority": 3,
     "review": 1,
     "context_only": 0

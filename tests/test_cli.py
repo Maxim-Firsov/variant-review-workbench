@@ -198,13 +198,23 @@ class CliTests(unittest.TestCase):
             metadata = json.loads((out_dir / "run_metadata.json").read_text(encoding="utf-8"))
             report_html = (out_dir / "report.html").read_text(encoding="utf-8")
             variants_json = json.loads((out_dir / "prioritized_variants.json").read_text(encoding="utf-8"))
+            with (out_dir / "annotated_variants.csv").open("r", encoding="utf-8", newline="") as handle:
+                csv_rows = list(csv.DictReader(handle))
 
-        self.assertEqual(summary["variant_count"], 1)
-        self.assertEqual(summary["conflict_count"], 1)
+        self.assertEqual(summary["schema_version"], "1.0")
+        self.assertEqual(summary["artifact_type"], "summary")
+        self.assertEqual(summary["input_variant_count"], 1)
+        self.assertEqual(summary["conflict_flagged_count"], 1)
         self.assertEqual(metadata["statistics"]["clinvar_matched_count"], 1)
         self.assertIn("Variant Review Report", report_html)
-        self.assertEqual(variants_json[0]["gene"], "TP53")
-        self.assertEqual(variants_json[0]["conflict"], "Yes")
+        self.assertEqual(variants_json["schema_version"], "1.0")
+        self.assertEqual(variants_json["artifact_type"], "prioritized_variants")
+        self.assertEqual(variants_json["records"][0]["input_gene"], "TP53")
+        self.assertTrue(variants_json["records"][0]["conflict_flagged"])
+        self.assertEqual(variants_json["records"][0]["condition_names"], ["Li-Fraumeni syndrome"])
+        self.assertEqual(csv_rows[0]["clinvar_matched"], "true")
+        self.assertEqual(csv_rows[0]["condition_names"], "[\"Li-Fraumeni syndrome\"]")
+        self.assertEqual(csv_rows[0]["flags"], "[\"clinvar_matched\", \"clinvar_conflict\", \"clinvar_review_stars_3\", \"submission_evidence_available\"]")
 
 
 if __name__ == "__main__":

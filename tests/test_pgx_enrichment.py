@@ -246,8 +246,8 @@ class PharmGKBEnrichmentTests(unittest.TestCase):
 
         self.assertTrue(metadata["pharmgkb_enabled"])
         self.assertEqual(metadata["statistics"]["pharmgkb_enriched_count"], 1)
-        self.assertEqual(prioritized[0]["pharmgkb"], "Yes")
-        self.assertIn("pharmgkb_enriched", prioritized[0]["flags"])
+        self.assertTrue(prioritized["records"][0]["pharmgkb_matched"])
+        self.assertIn("pharmgkb_enriched", prioritized["records"][0]["flags"])
 
 
 if __name__ == "__main__":

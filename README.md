@@ -117,11 +117,12 @@ variant-review-workbench/
 Each run writes:
 
 - `annotated_variants.csv`
-  - stable CSV export of the ranked table rows
+  - stable CSV export of ranked variant records
+  - list-valued fields are serialized as JSON arrays inside each cell
 - `prioritized_variants.json`
-  - machine-readable prioritized variant records
+  - machine-readable prioritized variant artifact with `schema_version`, `artifact_type`, and `records`
 - `summary.json`
-  - aggregate run metrics
+  - machine-readable summary artifact with stable count fields and priority-tier counts
 - `run_metadata.json`
   - reproducibility metadata, source provenance, and counts
 - `report.html`
@@ -151,6 +152,21 @@ Cache controls:
 - default cache location: `data/clinvar/processed/clinvar_lookup_cache.sqlite3`
 - override location: `--clinvar-cache-db <path>`
 - disable cache and force raw-file reads: `--disable-clinvar-cache`
+
+## Output Contract
+
+The machine-readable outputs are intentionally separate from the human-oriented HTML report.
+
+- `prioritized_variants.json` is the canonical structured export for downstream scripts
+- `annotated_variants.csv` uses the same field set as the JSON records where practical
+- list-valued fields such as `condition_names`, `flags`, and `ranking_rationale` remain lists in JSON and are encoded as JSON arrays in CSV cells
+- `summary.json` uses stable count names:
+  - `input_variant_count`
+  - `clinvar_matched_count`
+  - `clinvar_unmatched_count`
+  - `conflict_flagged_count`
+  - `pharmgkb_enriched_count`
+  - `review_priority_tier_counts`
 
 ## Setup
 
@@ -296,6 +312,8 @@ Run the current unit suite:
 python -m unittest discover -s tests -v
 ```
 
+GitHub Actions also runs syntax checks and the unit suite on push and pull request.
+
 The implemented system currently has coverage for:
 
 - VCF parsing
@@ -319,7 +337,7 @@ Implemented and tested:
 
 Current automated test count:
 
-- `39` passing unit tests
+- `43` passing unit tests
 
 ## Limitations
 

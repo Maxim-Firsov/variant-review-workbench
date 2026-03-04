@@ -213,3 +213,74 @@ class RunMetadata(BaseModel):
     pharmgkb_enabled: bool = False
     sources: list[DataProvenance] = Field(default_factory=list)
     statistics: RunStatistics = Field(default_factory=RunStatistics)
+
+
+class VariantExportRecord(BaseModel):
+    """Stable machine-readable export record emitted for ranked variants."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: str = "1.0"
+    record_id: str
+    assembly: GenomeAssembly
+    chromosome: str
+    position: int
+    reference_allele: str
+    alternate_allele: str
+    locus: str
+    variant_id: str | None = None
+    input_gene: str | None = None
+    clinvar_gene: str | None = None
+    preferred_name: str | None = None
+    variation_id: int | None = None
+    allele_id: int | None = None
+    match_strategy: MatchStrategy
+    clinvar_matched: bool
+    clinical_significance: str | None = None
+    review_status: str | None = None
+    review_stars: int | None = None
+    condition_names: list[str] = Field(default_factory=list)
+    conflict_flagged: bool = False
+    conflict_significance: list[str] = Field(default_factory=list)
+    conflict_summary_text: str | None = None
+    submission_count: int | None = None
+    submission_submitter_names: list[str] = Field(default_factory=list)
+    submission_review_statuses: list[str] = Field(default_factory=list)
+    submission_clinical_significances: list[str] = Field(default_factory=list)
+    pharmgkb_queried: bool = False
+    pharmgkb_matched: bool = False
+    pharmgkb_gene_ids: list[str] = Field(default_factory=list)
+    pharmgkb_variant_ids: list[str] = Field(default_factory=list)
+    pharmgkb_chemicals: list[str] = Field(default_factory=list)
+    input_transcript: str | None = None
+    input_impact: str | None = None
+    input_consequence: str | None = None
+    priority_score: float
+    priority_tier: ReviewPriorityTier
+    flags: list[str] = Field(default_factory=list)
+    ranking_rationale: list[str] = Field(default_factory=list)
+
+
+class PrioritizedVariantsArtifact(BaseModel):
+    """Top-level machine-readable prioritized variants artifact."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: str = "1.0"
+    artifact_type: str = "prioritized_variants"
+    records: list[VariantExportRecord] = Field(default_factory=list)
+
+
+class SummaryArtifact(BaseModel):
+    """Stable summary artifact emitted alongside ranked variant exports."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: str = "1.0"
+    artifact_type: str = "summary"
+    input_variant_count: int = 0
+    clinvar_matched_count: int = 0
+    clinvar_unmatched_count: int = 0
+    conflict_flagged_count: int = 0
+    pharmgkb_enriched_count: int = 0
+    review_priority_tier_counts: dict[str, int] = Field(default_factory=dict)

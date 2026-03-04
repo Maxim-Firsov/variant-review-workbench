@@ -7,7 +7,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from .models import RankedVariant, ReviewPriorityTier, RunMetadata
+from .models import RankedVariant, ReviewPriorityTier, RunMetadata, SummaryArtifact
 
 TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates"
 REPORT_TEMPLATE_NAME = "report.html.j2"
@@ -37,7 +37,7 @@ def _build_environment() -> Environment:
     )
 
 
-def build_report_summary(ranked_variants: list[RankedVariant]) -> dict[str, object]:
+def build_report_summary(ranked_variants: list[RankedVariant]) -> SummaryArtifact:
     """Compute analyst-facing summary metrics for a ranked variant set."""
     tier_counts = Counter(ranked.priority_tier.value for ranked in ranked_variants)
     matched_count = sum(1 for ranked in ranked_variants if ranked.annotated_variant.has_clinvar_match)
@@ -48,18 +48,18 @@ def build_report_summary(ranked_variants: list[RankedVariant]) -> dict[str, obje
         if ranked.annotated_variant.pharmgkb is not None and ranked.annotated_variant.pharmgkb.matched
     )
 
-    return {
-        "variant_count": len(ranked_variants),
-        "clinvar_matched_count": matched_count,
-        "clinvar_unmatched_count": len(ranked_variants) - matched_count,
-        "conflict_count": conflict_count,
-        "pharmgkb_count": pharmgkb_count,
-        "tier_counts": {
+    return SummaryArtifact(
+        input_variant_count=len(ranked_variants),
+        clinvar_matched_count=matched_count,
+        clinvar_unmatched_count=len(ranked_variants) - matched_count,
+        conflict_flagged_count=conflict_count,
+        pharmgkb_enriched_count=pharmgkb_count,
+        review_priority_tier_counts={
             ReviewPriorityTier.HIGH_REVIEW_PRIORITY.value: tier_counts.get(ReviewPriorityTier.HIGH_REVIEW_PRIORITY.value, 0),
             ReviewPriorityTier.REVIEW.value: tier_counts.get(ReviewPriorityTier.REVIEW.value, 0),
             ReviewPriorityTier.CONTEXT_ONLY.value: tier_counts.get(ReviewPriorityTier.CONTEXT_ONLY.value, 0),
         },
-    }
+    )
 
 
 def _format_conditions(conditions: list[str]) -> str:
@@ -104,13 +104,22 @@ def build_report_context(
     rows = [_build_variant_row(ranked_variant) for ranked_variant in ranked_variants]
     top_findings = rows[: min(5, len(rows))]
     conflict_rows = [row for row in rows if row["conflict"] == "Yes"]
+    report_summary = {
+        "variant_count": summary.input_variant_count,
+        "clinvar_matched_count": summary.clinvar_matched_count,
+        "clinvar_unmatched_count": summary.clinvar_unmatched_count,
+        "conflict_count": summary.conflict_flagged_count,
+        "pharmgkb_count": summary.pharmgkb_enriched_count,
+        "tier_counts": summary.review_priority_tier_counts,
+    }
 
     return {
         "report_title": "Variant Review Report",
         "generated_at": run_metadata.run_started_at.isoformat() if run_metadata is not None else None,
         "assembly": run_metadata.assembly.value if run_metadata is not None else None,
         "input_path": run_metadata.input_path if run_metadata is not None else None,
-        "summary": summary,
+        "summary": report_summary,
+        "summary_artifact": summary.model_dump(mode="json"),
         "top_findings": top_findings,
         "conflict_rows": conflict_rows,
         "variant_rows": rows,

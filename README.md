@@ -112,6 +112,21 @@ variant-review-workbench/
 - `submission_summary.txt.gz`
 - PharmGKB enrichment via `--enable-pharmgkb`
 
+### Download Locations
+
+Download the required ClinVar files from the official NCBI FTP `tab_delimited` directory:
+
+- directory listing: `https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/`
+- `variant_summary.txt.gz`: `https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/variant_summary.txt.gz`
+- `summary_of_conflicting_interpretations.txt`: `https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/summary_of_conflicting_interpretations.txt`
+- `submission_summary.txt.gz`: `https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/submission_summary.txt.gz`
+
+Recommended local placement for the examples in this README:
+
+- `data/clinvar/raw/variant_summary.txt.gz`
+- `data/clinvar/raw/summary_of_conflicting_interpretations.txt`
+- `data/clinvar/raw/submission_summary.txt.gz`
+
 ## Outputs
 
 Each run writes:
@@ -371,9 +386,9 @@ Used as the core local reference layer for variant matching and conflict attachm
 
 Primary files used by this workbench:
 
-- `variant_summary.txt.gz`
-- `summary_of_conflicting_interpretations.txt`
-- `submission_summary.txt.gz`
+- [`variant_summary.txt.gz`](https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/variant_summary.txt.gz)
+- [`summary_of_conflicting_interpretations.txt`](https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/summary_of_conflicting_interpretations.txt)
+- [`submission_summary.txt.gz`](https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/submission_summary.txt.gz)
 
 ### PharmGKB / ClinPGx
 

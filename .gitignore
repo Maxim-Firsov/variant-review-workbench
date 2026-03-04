@@ -8,3 +8,5 @@ data/pharmgkb/cache/*
 __pycache__/
 .pytest_cache/
 .ruff_cache/
+
+WORKPLAN.local.md

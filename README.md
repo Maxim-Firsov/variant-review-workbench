@@ -437,7 +437,7 @@ Implemented and tested:
 
 Current automated test count:
 
-- `45` passing unit tests
+- `46` passing unit tests
 
 ## Limitations
 

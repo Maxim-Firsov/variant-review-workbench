@@ -1,66 +1,147 @@
 {% extends "web/base.html.j2" %}
 
 {% block content %}
-  <section class="hero">
-    <h1>Results Shell</h1>
-    <p>
-      This page reuses the generated report artifact from the shared backend pipeline. The browser view is not a
-      second report implementation.
-    </p>
-    <div class="meta-card">
-      <strong>Run identifier</strong>
-      <div class="mono">{{ run_id }}</div>
-      <p>Status: <span class="mono">{{ job.status }}</span></p>
-      <p>Mode: <span class="mono">{{ job.mode }}</span></p>
-      {% if job.export_format %}
-        <p>Requested export preference: <span class="mono">{{ job.export_format }}</span></p>
-      {% endif %}
-      {% if job.result and job.status == "succeeded" %}
-        <div class="actions" style="margin-top: 14px;">
-          <a class="button" href="{{ url_for('run_export', run_id=run_id, export_format='html') }}">Export HTML</a>
-          <a class="button secondary" href="{{ url_for('run_export', run_id=run_id, export_format='json') }}">Export JSON</a>
-          <a class="button secondary" href="{{ url_for('run_export', run_id=run_id, export_format='md') }}">Export Markdown</a>
+  <section class="hero" data-run-status data-run-id="{{ run_id }}" data-run-status="{{ job.status }}">
+    <div class="status-grid">
+      <div>
+        <p class="eyebrow">Run Results</p>
+        <h1>Generated report, artifacts, and run state in one place.</h1>
+        <p>
+          This page embeds the actual generated report artifact from the shared backend pipeline. The browser view
+          does not fork the reporting layer.
+        </p>
+        <div class="actions">
+          {% if job.result and job.status == "succeeded" %}
+            <a class="button" href="{{ url_for('run_export', run_id=run_id, export_format='html') }}">Export HTML</a>
+            <a class="button secondary" href="{{ url_for('run_export', run_id=run_id, export_format='json') }}">Export JSON</a>
+            <a class="button secondary" href="{{ url_for('run_export', run_id=run_id, export_format='md') }}">Export Markdown</a>
+          {% else %}
+            <a class="button ghost" href="{{ url_for('home') }}">Start another run</a>
+          {% endif %}
+        </div>
+      </div>
+      <div class="meta-card">
+        <strong>Run identifier</strong>
+        <div class="mono">{{ run_id }}</div>
+        <div class="subtle-divider"></div>
+        <div class="actions-inline">
+          <span class="status-badge {{ job.status }}" data-status-badge>{{ job.status }}</span>
+        </div>
+        <p data-status-message class="muted" style="margin-bottom: 0;">
+          {% if job.status == "succeeded" %}
+            The report and export artifacts are ready.
+          {% elif job.status == "failed" %}
+            The job failed before the report could be rendered.
+          {% elif job.status == "running" %}
+            The job is running now. This page will refresh when the report is ready.
+          {% else %}
+            The job is queued. This page is polling the status endpoint.
+          {% endif %}
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-top: 24px; padding: 28px;">
+    <div class="panel-header">
+      <h2>Job status</h2>
+      <span class="mono">{{ url_for('run_status', run_id=run_id) }}</span>
+    </div>
+    <p class="muted">Use the status endpoint for programmatic polling. The browser refreshes automatically while the job is queued or running.</p>
+    <div class="subtle-divider"></div>
+    <div class="status-list">
+      <div class="status-item">
+        <span>Mode</span>
+        <strong class="mono">{{ job.mode }}</strong>
+      </div>
+      <div class="status-item">
+        <span>Requested export</span>
+        <strong class="mono">{{ job.export_format or "None" }}</strong>
+      </div>
+      <div class="status-item">
+        <span>Current status</span>
+        <strong>{{ job.status }}</strong>
+      </div>
+      {% if job.result %}
+        <div class="status-item">
+          <span>Uploaded VCF</span>
+          <strong class="mono">{{ job.result.uploaded_vcf_path }}</strong>
+        </div>
+        <div class="status-item">
+          <span>Run output directory</span>
+          <strong class="mono">{{ job.result.output_dir }}</strong>
+        </div>
+        <div class="status-item">
+          <span>Summary artifact</span>
+          <strong class="mono">{{ job.result.summary_json_path }}</strong>
+        </div>
+        <div class="status-item">
+          <span>Report JSON export</span>
+          <strong class="mono">{{ job.result.report_json_path }}</strong>
+        </div>
+        <div class="status-item">
+          <span>Report Markdown export</span>
+          <strong class="mono">{{ job.result.report_markdown_path }}</strong>
+        </div>
+      {% elif job.error %}
+        <div class="status-item">
+          <span>Error</span>
+          <strong class="mono">{{ job.error }}</strong>
         </div>
       {% endif %}
     </div>
   </section>
 
-  <section class="panel" style="margin-top: 24px; padding: 28px;">
-    <h2>Job status</h2>
-    <p>
-      Pollable status endpoint:
-      <span class="mono">{{ url_for('run_status', run_id=run_id) }}</span>
-    </p>
-    {% if job.result %}
-      <p>{{ job.result.message }}</p>
-      <p>Uploaded VCF: <span class="mono">{{ job.result.uploaded_vcf_path }}</span></p>
-      <p>Run output directory: <span class="mono">{{ job.result.output_dir }}</span></p>
-      <p>Summary artifact: <span class="mono">{{ job.result.summary_json_path }}</span></p>
-      <p>Report JSON export: <span class="mono">{{ job.result.report_json_path }}</span></p>
-      <p>Report Markdown export: <span class="mono">{{ job.result.report_markdown_path }}</span></p>
-    {% elif job.error %}
-      <p>Job failed: <span class="mono">{{ job.error }}</span></p>
-    {% else %}
-      <p>The job has been accepted and is waiting for completion.</p>
-    {% endif %}
-  </section>
-
   {% if job.result and job.status == "succeeded" %}
+    <section class="panel" style="margin-top: 24px; padding: 28px;">
+      <div class="fact-grid">
+        <div class="fact-card">
+          <strong>Input Variants</strong>
+          <span class="metric">{{ job.result.summary.input_variant_count }}</span>
+          <p>Total uploaded VCF records processed by this run.</p>
+        </div>
+        <div class="fact-card">
+          <strong>ClinVar Matches</strong>
+          <span class="metric">{{ job.result.summary.clinvar_matched_count }}</span>
+          <p>Exact assembly-aware matches found in the configured ClinVar snapshot.</p>
+        </div>
+        <div class="fact-card">
+          <strong>Conflicts</strong>
+          <span class="metric">{{ job.result.summary.conflict_flagged_count }}</span>
+          <p>Findings surfaced into the conflict review queue for manual inspection.</p>
+        </div>
+      </div>
+    </section>
+
     <section class="panel" style="margin-top: 24px; padding: 16px;">
-      <h2 style="padding: 12px 12px 0;">Report Preview</h2>
+      <div class="panel-header" style="padding: 12px 12px 0;">
+        <h2>Report Preview</h2>
+        <a class="button ghost" href="{{ url_for('run_report', run_id=run_id) }}">Open raw HTML</a>
+      </div>
       <iframe
         title="Variant Review Report"
         src="{{ url_for('run_report', run_id=run_id) }}"
-        style="width: 100%; min-height: 960px; border: 0; border-radius: 16px; background: white;"
+        class="report-frame"
       ></iframe>
     </section>
   {% else %}
     <section class="panel" style="margin-top: 24px; padding: 28px;">
-      <h2>Planned result experience</h2>
+      <h2>Current state</h2>
+      {% if job.error %}
+        <div class="notice error">
+          <strong>Run failed</strong>
+          <p>{{ job.error }}</p>
+        </div>
+      {% else %}
+        <div class="notice">
+          <strong>Waiting on completion</strong>
+          <p>The report preview will appear here automatically once the job reaches the `succeeded` state.</p>
+        </div>
+      {% endif %}
       <ul>
-        <li>Rendered analyst-facing report from the shared reporting pipeline</li>
-        <li>Visible provenance and research-use disclaimer</li>
-        <li>Export control for JSON, HTML, and Markdown artifacts</li>
+        <li>Generated report will be embedded here when ready.</li>
+        <li>Export controls will remain visible after the job succeeds.</li>
+        <li>Provenance and artifacts stay bound to the run workspace.</li>
       </ul>
     </section>
   {% endif %}

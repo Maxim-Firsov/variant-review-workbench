@@ -2,32 +2,56 @@
 
 {% block content %}
   <section class="hero">
+    <p class="eyebrow">ReadMe View</p>
     <h1>Variant Review Workbench</h1>
     <p>
       This web interface preserves the existing CLI-first architecture. The core pipeline remains responsible
       for ClinVar matching, conflict surfacing, optional PharmGKB enrichment, ranking, reporting, and artifact export.
     </p>
+    <div class="actions">
+      <a class="button" href="{{ url_for('home') }}">Open the run form</a>
+      <a class="button ghost" href="https://github.com/Maxim-Firsov/variant-review-workbench" target="_blank" rel="noreferrer">View repository</a>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-top: 24px; padding: 28px;">
+    <div class="docs-grid">
+      <div class="doc-card">
+        <strong>What this app is</strong>
+        <p>A thin analyst-facing layer over the current pipeline, not a rewrite.</p>
+      </div>
+      <div class="doc-card">
+        <strong>What it demonstrates</strong>
+        <p>Shared backend orchestration, real artifact generation, reproducibility metadata, and exportable reports.</p>
+      </div>
+      <div class="doc-card">
+        <strong>What it is not</strong>
+        <p>A clinical decision system, diagnostic portal, or multi-user PHI-ready platform.</p>
+      </div>
+    </div>
   </section>
 
   <section class="panel" style="margin-top: 24px; padding: 28px;">
     <div class="panel-grid">
       <div>
-        <h2>What This App Is</h2>
+        <h2>Current browser workflow</h2>
         <ul>
-          <li>A thin analyst-facing layer over the current pipeline</li>
-          <li>A research triage interface for small-variant review</li>
-          <li>A non-clinical demonstration of the same export and reporting workflow</li>
+          <li>Upload a `.vcf` or `.vcf.gz` file</li>
+          <li>Select `GRCh37` or `GRCh38`</li>
+          <li>Optionally enable PharmGKB enrichment</li>
+          <li>Either open the report in the browser or jump straight to export</li>
         </ul>
       </div>
       <div>
-        <h2>What Comes Next</h2>
+        <h2>Current outputs</h2>
         <ul>
-          <li>Real VCF upload handling</li>
-          <li>Job execution and status tracking</li>
-          <li>Report rendering from shared pipeline outputs</li>
-          <li>JSON, HTML, and Markdown exports</li>
+          <li>Embedded generated HTML report</li>
+          <li>Report export as HTML, JSON, or Markdown</li>
+          <li>Machine-readable status endpoint for each submitted run</li>
+          <li>Run-local artifact directory with reproducibility metadata</li>
         </ul>
       </div>
     </div>
+    <p class="footer-note">The CLI remains the canonical engine. The browser interface is intentionally additive and non-destructive.</p>
   </section>
 {% endblock %}

@@ -4,6 +4,7 @@
   <section class="hero">
     <div class="hero-grid">
       <div>
+        <p class="eyebrow">Browser Interface</p>
         <div class="chip-row">
           <span class="chip">ClinVar-first</span>
           <span class="chip">Research use only</span>
@@ -18,6 +19,10 @@
           Upload handling, isolated run workspaces, and shared pipeline execution are now live. The next phase
           will expose browser-side export controls over the generated artifacts.
         </p>
+        <div class="actions">
+          <a class="button" href="#run-setup">Start a run</a>
+          <a class="button ghost" href="{{ url_for('docs') }}">Read the details</a>
+        </div>
       </div>
       <div class="meta-card">
         <strong>Current web skeleton</strong>
@@ -28,25 +33,51 @@
   </section>
 
   <section class="panel" style="margin-top: 24px; padding: 28px;">
+    <div class="fact-grid">
+      <div class="fact-card">
+        <strong>Input</strong>
+        <span class="metric">VCF</span>
+        <p>Accepts `.vcf` and `.vcf.gz` uploads and stores them in per-run workspaces.</p>
+      </div>
+      <div class="fact-card">
+        <strong>Execution</strong>
+        <span class="metric">Shared</span>
+        <p>The browser uses the same ClinVar-first backend pipeline and report builder as the CLI.</p>
+      </div>
+      <div class="fact-card">
+        <strong>Outputs</strong>
+        <span class="metric">3 Formats</span>
+        <p>Download the generated report as HTML, JSON, or Markdown after the run completes.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="run-setup" style="margin-top: 24px; padding: 28px;">
     <h2>Run Setup</h2>
-    <form class="stack" method="post" action="{{ url_for('create_run') }}" enctype="multipart/form-data">
+    <p class="muted">Choose a VCF, pick the assembly, and decide whether to open the report in the browser or go straight to a file export.</p>
+    <div class="subtle-divider"></div>
+    <form class="stack" method="post" action="{{ url_for('create_run') }}" enctype="multipart/form-data" data-run-form>
       {% if form_error %}
-        <div class="meta-card">
+        <div class="notice error">
           <strong>Submission error</strong>
           <p>{{ form_error }}</p>
         </div>
       {% endif %}
-      <div class="field">
-        <label for="vcf_file">VCF upload</label>
-        <input id="vcf_file" name="vcf_file" type="file" accept=".vcf,.vcf.gz,.gz">
-      </div>
+      <div class="grid-two">
+        <div class="field">
+          <label for="vcf_file">VCF upload</label>
+          <input id="vcf_file" name="vcf_file" type="file" accept=".vcf,.vcf.gz,.gz" required>
+          <small>Use a local `.vcf` or `.vcf.gz` file. Uploaded inputs are isolated per run.</small>
+        </div>
 
-      <div class="field">
-        <label for="assembly">Assembly</label>
-        <select id="assembly" name="assembly">
-          <option value="GRCh38">GRCh38</option>
-          <option value="GRCh37">GRCh37</option>
-        </select>
+        <div class="field">
+          <label for="assembly">Assembly</label>
+          <select id="assembly" name="assembly">
+            <option value="GRCh38">GRCh38</option>
+            <option value="GRCh37">GRCh37</option>
+          </select>
+          <small>Pick the assembly that matches the uploaded VCF coordinates.</small>
+        </div>
       </div>
 
       <fieldset class="fieldset">
@@ -63,19 +94,24 @@
         </div>
       </fieldset>
 
-      <div class="field">
+      <div class="field" data-export-format-field>
         <label for="export_format">Preferred export format</label>
         <select id="export_format" name="export_format">
           <option value="json">JSON</option>
           <option value="html">HTML</option>
           <option value="md">Markdown</option>
         </select>
+        <small>Only used when “skip browser report” is selected.</small>
       </div>
 
       <div class="actions">
-        <button type="submit">Open Results Shell</button>
+        <button type="submit" data-submit-button data-loading="false">
+          <span class="loading-label-default">Run in browser</span>
+          <span class="loading-label-active">Submitting run...</span>
+        </button>
         <a class="button secondary" href="{{ url_for('docs') }}">Read project details</a>
       </div>
+      <p class="footer-note">Research-use only. The browser layer preserves the existing non-clinical scope and artifact provenance model.</p>
     </form>
   </section>
 {% endblock %}

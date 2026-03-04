@@ -9,9 +9,24 @@ from uuid import uuid4
 from flask import Flask, abort, jsonify, redirect, render_template, request, url_for
 
 from .jobs import JobRunner, JobStore
+from .storage import (
+    UploadValidationError,
+    cleanup_expired_run_directories,
+    create_run_workspace,
+    ensure_storage_roots,
+    save_uploaded_vcf,
+)
 
-
-def _build_placeholder_result(*, job_id: str, assembly: str, mode: str, export_format: str | None, pharmgkb_enabled: bool) -> dict[str, str | bool | None]:
+def _build_placeholder_result(
+    *,
+    job_id: str,
+    assembly: str,
+    mode: str,
+    export_format: str | None,
+    pharmgkb_enabled: bool,
+    uploaded_vcf_path: str,
+    output_dir: str,
+) -> dict[str, str | bool | None]:
     """Return the placeholder job payload until real pipeline execution is wired in."""
     sleep(0.01)
     return {
@@ -20,7 +35,9 @@ def _build_placeholder_result(*, job_id: str, assembly: str, mode: str, export_f
         "mode": mode,
         "export_format": export_format,
         "pharmgkb_enabled": pharmgkb_enabled,
-        "message": "Execution is stubbed in Phase 3. Real pipeline jobs arrive in Phase 4 and Phase 5.",
+        "uploaded_vcf_path": uploaded_vcf_path,
+        "output_dir": output_dir,
+        "message": "Execution is still stubbed. Phase 4 now stores uploads in isolated run workspaces while Phase 5 wires in real reporting.",
     }
 
 
@@ -33,8 +50,15 @@ def create_app(test_config: dict | None = None) -> Flask:
     app = Flask(__name__, template_folder=str(template_dir), static_folder=str(static_dir))
     app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
     app.config["JOB_EXECUTION_MODE"] = "threaded"
+    app.config["UPLOAD_ROOT"] = str(project_root / ".web_runtime" / "uploads")
+    app.config["RUN_OUTPUT_ROOT"] = str(project_root / ".web_runtime" / "runs")
+    app.config["RUN_RETENTION_HOURS"] = 24
     if test_config:
         app.config.update(test_config)
+
+    upload_root = Path(app.config["UPLOAD_ROOT"])
+    run_output_root = Path(app.config["RUN_OUTPUT_ROOT"])
+    ensure_storage_roots(upload_root, run_output_root)
 
     app.extensions["job_store"] = JobStore()
     app.extensions["job_runner"] = JobRunner(
@@ -66,10 +90,34 @@ def create_app(test_config: dict | None = None) -> Flask:
         export_format = request.form.get("export_format", "json")
         assembly = request.form.get("assembly", "GRCh38")
         pharmgkb_enabled = request.form.get("enable_pharmgkb") == "true"
+        uploaded_vcf = request.files.get("vcf_file")
+
+        cleanup_expired_run_directories(
+            upload_root=upload_root,
+            run_output_root=run_output_root,
+            retention_hours=int(app.config["RUN_RETENTION_HOURS"]),
+        )
+        try:
+            workspace = create_run_workspace(job_id=job_id, upload_root=upload_root, run_output_root=run_output_root)
+            workspace = save_uploaded_vcf(upload=uploaded_vcf, workspace=workspace)
+        except UploadValidationError as error:
+            return (
+                render_template(
+                    "web/home.html.j2",
+                    page_title="Variant Review Workbench",
+                    current_page="home",
+                    form_error=str(error),
+                ),
+                400,
+            )
+
         metadata = {
             "assembly": assembly,
             "pharmgkb_enabled": pharmgkb_enabled,
             "requested_export_format": export_format,
+            "uploaded_vcf_path": str(workspace.uploaded_vcf_path),
+            "output_dir": str(workspace.output_dir),
+            "cleanup_policy": f"Run workspaces older than {app.config['RUN_RETENTION_HOURS']} hour(s) are removed opportunistically on new submissions.",
         }
 
         job_runner: JobRunner = app.extensions["job_runner"]
@@ -84,6 +132,8 @@ def create_app(test_config: dict | None = None) -> Flask:
                 mode=mode,
                 export_format=export_format,
                 pharmgkb_enabled=pharmgkb_enabled,
+                uploaded_vcf_path=str(workspace.uploaded_vcf_path),
+                output_dir=str(workspace.output_dir),
             ),
         )
         return redirect(url_for("results", run_id=job_id))
@@ -125,7 +175,12 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     @app.get("/healthz")
     def healthz() -> tuple[dict[str, str], int]:
-        return {"status": "ok", "job_execution_mode": app.config["JOB_EXECUTION_MODE"]}, 200
+        return {
+            "status": "ok",
+            "job_execution_mode": app.config["JOB_EXECUTION_MODE"],
+            "upload_root": str(upload_root),
+            "run_output_root": str(run_output_root),
+        }, 200
 
     return app
 

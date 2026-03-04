@@ -26,6 +26,8 @@
     </p>
     {% if job.result %}
       <p>{{ job.result.message }}</p>
+      <p>Uploaded VCF: <span class="mono">{{ job.result.uploaded_vcf_path }}</span></p>
+      <p>Run output directory: <span class="mono">{{ job.result.output_dir }}</span></p>
     {% elif job.error %}
       <p>Job failed: <span class="mono">{{ job.error }}</span></p>
     {% else %}

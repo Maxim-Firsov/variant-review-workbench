@@ -15,24 +15,30 @@
           assembly, and choose whether you want a browser report or a direct export.
         </p>
         <p>
-          Phase 2 only provides the application shell. Submission currently routes to a placeholder results
-          page while the execution and export phases are implemented.
+          Upload handling and isolated run workspaces are now live. The report and export pages still use a
+          placeholder execution payload until the shared reporting pipeline is connected.
         </p>
       </div>
       <div class="meta-card">
         <strong>Current web skeleton</strong>
-        <p>Available now: homepage, docs page, results shell, health check, and submission routing.</p>
-        <p>Next: background execution, upload handling, report rendering, and real exports.</p>
+        <p>Available now: homepage, docs page, job submission, run isolation, health check, and status routing.</p>
+        <p>Next: report rendering from the real pipeline and browser-visible exports.</p>
       </div>
     </div>
   </section>
 
   <section class="panel" style="margin-top: 24px; padding: 28px;">
     <h2>Run Setup</h2>
-    <form class="stack" method="post" action="{{ url_for('create_run') }}">
+    <form class="stack" method="post" action="{{ url_for('create_run') }}" enctype="multipart/form-data">
+      {% if form_error %}
+        <div class="meta-card">
+          <strong>Submission error</strong>
+          <p>{{ form_error }}</p>
+        </div>
+      {% endif %}
       <div class="field">
-        <label for="vcf_path">VCF upload placeholder</label>
-        <input id="vcf_path" name="vcf_path" type="text" placeholder="VCF upload arrives in Phase 4">
+        <label for="vcf_file">VCF upload</label>
+        <input id="vcf_file" name="vcf_file" type="file" accept=".vcf,.vcf.gz,.gz">
       </div>
 
       <div class="field">

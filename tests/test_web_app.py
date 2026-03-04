@@ -1,14 +1,30 @@
 from __future__ import annotations
 
+import io
+import tempfile
 import unittest
+from pathlib import Path
 
 from src.web import create_app
 
 
 class WebAppTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.app = create_app({"TESTING": True, "JOB_EXECUTION_MODE": "inline"})
+        self.tmpdir = tempfile.TemporaryDirectory()
+        root = Path(self.tmpdir.name)
+        self.app = create_app(
+            {
+                "TESTING": True,
+                "JOB_EXECUTION_MODE": "inline",
+                "UPLOAD_ROOT": str(root / "uploads"),
+                "RUN_OUTPUT_ROOT": str(root / "runs"),
+                "RUN_RETENTION_HOURS": 1,
+            }
+        )
         self.client = self.app.test_client()
+
+    def tearDown(self) -> None:
+        self.tmpdir.cleanup()
 
     def test_home_page_renders_form_shell(self) -> None:
         response = self.client.get("/")
@@ -16,6 +32,7 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Run the workbench without touching the command line.", response.data)
         self.assertIn(b"Run Setup", response.data)
+        self.assertIn(b'enctype="multipart/form-data"', response.data)
 
     def test_docs_page_renders_project_context(self) -> None:
         response = self.client.get("/docs")
@@ -28,12 +45,22 @@ class WebAppTests(unittest.TestCase):
         response = self.client.get("/healthz")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.get_json(), {"status": "ok", "job_execution_mode": "inline"})
+        payload = response.get_json()
+        assert payload is not None
+        self.assertEqual(payload["status"], "ok")
+        self.assertEqual(payload["job_execution_mode"], "inline")
+        self.assertTrue(payload["upload_root"].endswith("uploads"))
+        self.assertTrue(payload["run_output_root"].endswith("runs"))
 
     def test_create_run_redirects_to_results_shell(self) -> None:
         response = self.client.post(
             "/runs",
-            data={"assembly": "GRCh38", "export_format": "json"},
+            data={
+                "assembly": "GRCh38",
+                "export_format": "json",
+                "vcf_file": (io.BytesIO(b"##fileformat=VCFv4.2\n"), "demo.vcf"),
+            },
+            content_type="multipart/form-data",
         )
 
         self.assertEqual(response.status_code, 302)
@@ -42,7 +69,13 @@ class WebAppTests(unittest.TestCase):
     def test_export_only_submission_redirects_with_export_preference(self) -> None:
         response = self.client.post(
             "/runs",
-            data={"assembly": "GRCh38", "mode": "export_only", "export_format": "md"},
+            data={
+                "assembly": "GRCh38",
+                "mode": "export_only",
+                "export_format": "md",
+                "vcf_file": (io.BytesIO(b"##fileformat=VCFv4.2\n"), "demo.vcf.gz"),
+            },
+            content_type="multipart/form-data",
         )
 
         self.assertEqual(response.status_code, 302)
@@ -54,7 +87,13 @@ class WebAppTests(unittest.TestCase):
     def test_results_page_renders_placeholder(self) -> None:
         create_response = self.client.post(
             "/runs",
-            data={"assembly": "GRCh38", "export_format": "html", "enable_pharmgkb": "true"},
+            data={
+                "assembly": "GRCh38",
+                "export_format": "html",
+                "enable_pharmgkb": "true",
+                "vcf_file": (io.BytesIO(b"##fileformat=VCFv4.2\n"), "demo.vcf"),
+            },
+            content_type="multipart/form-data",
         )
         response = self.client.get(create_response.headers["Location"])
 
@@ -62,12 +101,18 @@ class WebAppTests(unittest.TestCase):
         self.assertIn(b"Results Shell", response.data)
         self.assertIn(b"Status:", response.data)
         self.assertIn(b"html", response.data)
-        self.assertIn(b"Execution is stubbed in Phase 3", response.data)
+        self.assertIn(b"Execution is still stubbed", response.data)
+        self.assertIn(b"Uploaded VCF:", response.data)
 
     def test_status_endpoint_returns_job_result(self) -> None:
         create_response = self.client.post(
             "/runs",
-            data={"assembly": "GRCh37", "export_format": "json"},
+            data={
+                "assembly": "GRCh37",
+                "export_format": "json",
+                "vcf_file": (io.BytesIO(b"##fileformat=VCFv4.2\n"), "demo.vcf"),
+            },
+            content_type="multipart/form-data",
         )
         run_path = create_response.headers["Location"]
         run_id = run_path.rstrip("/").split("/")[-1]
@@ -81,12 +126,62 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(payload["status"], "succeeded")
         self.assertEqual(payload["metadata"]["assembly"], "GRCh37")
         self.assertEqual(payload["result"]["mode"], "report")
+        self.assertTrue(payload["metadata"]["uploaded_vcf_path"].endswith("demo.vcf"))
+        self.assertIn(run_id, payload["metadata"]["output_dir"])
 
     def test_status_endpoint_returns_404_for_missing_run(self) -> None:
         response = self.client.get("/runs/run-missing/status")
 
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.get_json(), {"error": "run not found"})
+
+    def test_create_run_rejects_missing_upload(self) -> None:
+        response = self.client.post(
+            "/runs",
+            data={"assembly": "GRCh38", "export_format": "json"},
+            content_type="multipart/form-data",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(b"Submission error", response.data)
+        self.assertIn(b"A VCF or VCF.GZ file is required.", response.data)
+
+    def test_create_run_rejects_non_vcf_upload(self) -> None:
+        response = self.client.post(
+            "/runs",
+            data={
+                "assembly": "GRCh38",
+                "export_format": "json",
+                "vcf_file": (io.BytesIO(b"not a vcf"), "notes.txt"),
+            },
+            content_type="multipart/form-data",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(b"Uploaded file must end with .vcf or .vcf.gz.", response.data)
+
+    def test_uploaded_file_is_isolated_in_run_workspace(self) -> None:
+        response = self.client.post(
+            "/runs",
+            data={
+                "assembly": "GRCh38",
+                "export_format": "json",
+                "vcf_file": (io.BytesIO(b"##fileformat=VCFv4.2\n"), "..\\unsafe-demo.vcf"),
+            },
+            content_type="multipart/form-data",
+        )
+        run_id = response.headers["Location"].rstrip("/").split("/")[-1]
+
+        status_response = self.client.get(f"/runs/{run_id}/status")
+        payload = status_response.get_json()
+        assert payload is not None
+
+        uploaded_path = Path(payload["metadata"]["uploaded_vcf_path"])
+        output_dir = Path(payload["metadata"]["output_dir"])
+        self.assertTrue(uploaded_path.exists())
+        self.assertEqual(uploaded_path.parent.name, run_id)
+        self.assertEqual(output_dir.parent.name, run_id)
+        self.assertEqual(uploaded_path.name, "unsafe-demo.vcf")
 
 
 if __name__ == "__main__":

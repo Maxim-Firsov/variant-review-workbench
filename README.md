@@ -167,6 +167,7 @@ Cache controls:
 - default cache location: `data/clinvar/processed/clinvar_lookup_cache.sqlite3`
 - override location: `--clinvar-cache-db <path>`
 - disable cache and force raw-file reads: `--disable-clinvar-cache`
+- prebuild or refresh the cache without running a report: `python -m src.cache_bootstrap ...`
 
 ## Output Contract
 
@@ -242,6 +243,11 @@ Recommended hosted disk layout:
 - ClinVar raw files: `/var/data/clinvar/raw`
 - ClinVar cache: `/var/data/clinvar/processed/clinvar_lookup_cache.sqlite3`
 
+Hosted recommendation:
+
+- do not rely on the first public web submission to build the shared ClinVar cache
+- prebuild the processed cache offline, then place the finished SQLite file on the mounted disk before treating the site as ready
+
 ### Web Guardrails
 
 - the web app is a convenience interface over the same research pipeline, not a clinical product
@@ -314,6 +320,17 @@ python -m src.cli `
   --submission-summary data\clinvar\raw\submission_summary.txt.gz `
   --disable-clinvar-cache `
   --out-dir outputs\demo_run_no_cache
+```
+
+Prebuild or refresh the processed ClinVar cache without running a report:
+
+```powershell
+python -m src.cache_bootstrap `
+  --variant-summary data\clinvar\raw\variant_summary.txt.gz `
+  --conflict-summary data\clinvar\raw\summary_of_conflicting_interpretations.txt `
+  --submission-summary data\clinvar\raw\submission_summary.txt.gz `
+  --clinvar-cache-db data\clinvar\processed\clinvar_lookup_cache.sqlite3 `
+  --force-rebuild
 ```
 
 ### Run With PharmGKB Enrichment
@@ -538,7 +555,7 @@ Implemented and tested:
 
 Current automated test count:
 
-- `74` passing unit tests
+- `76` passing unit tests
 
 ## Reviewer Notes
 

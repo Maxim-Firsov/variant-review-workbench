@@ -87,15 +87,37 @@ For first deployment on a fresh disk, `/healthz` will stay degraded until the Cl
 
 ## First Hosted Run
 
-The first hosted run against a fresh raw ClinVar snapshot is expected to be slow.
+Do not treat the first public hosted submission as the cache bootstrap path.
 
-What happens:
+Recommended deployment sequence:
+
+1. Upload the raw ClinVar files to the mounted disk.
+2. Build the processed cache offline or on a stronger one-time worker using `python -m src.cache_bootstrap`.
+3. Place the finished `clinvar_lookup_cache.sqlite3` on `/var/data/clinvar/processed/`.
+4. Only then treat the public web app as ready for normal hosted use.
+
+Why:
 
 - the app builds the processed ClinVar SQLite cache on the persistent disk
 - that preprocessing cost is paid once per raw snapshot state
 - later runs reuse the warmed cache and should be much faster
 
 In practical terms, hosted users do not each pay a cold-start preprocessing penalty once the cache already exists on the persistent disk.
+
+## Cache Bootstrap
+
+Build the cache without running a report:
+
+```powershell
+python -m src.cache_bootstrap `
+  --variant-summary data\clinvar\raw\variant_summary.txt.gz `
+  --conflict-summary data\clinvar\raw\summary_of_conflicting_interpretations.txt `
+  --submission-summary data\clinvar\raw\submission_summary.txt.gz `
+  --clinvar-cache-db data\clinvar\processed\clinvar_lookup_cache.sqlite3 `
+  --force-rebuild
+```
+
+If a prior interrupted build left temp artifacts behind, the bootstrap command removes stale `clinvar_lookup_cache.sqlite3.tmp`, `.tmp-shm`, and `.tmp-wal` files before rebuilding.
 
 ## Local Web Startup
 

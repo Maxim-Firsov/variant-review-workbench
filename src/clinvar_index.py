@@ -184,6 +184,30 @@ def _configure_cache_connection(connection: sqlite3.Connection) -> None:
     connection.execute("PRAGMA temp_store=MEMORY")
 
 
+def _configure_cache_build_connection(connection: sqlite3.Connection) -> None:
+    """Use a simpler journal mode while building a fresh cache from raw sources."""
+    connection.execute("PRAGMA journal_mode=DELETE")
+    connection.execute("PRAGMA synchronous=NORMAL")
+    connection.execute("PRAGMA temp_store=MEMORY")
+
+
+def _cache_rebuild_artifacts(cache_db_path: Path) -> list[Path]:
+    """List temporary files produced while rebuilding a processed cache."""
+    temporary_path = cache_db_path.with_suffix(cache_db_path.suffix + ".tmp")
+    return [
+        temporary_path,
+        temporary_path.with_name(temporary_path.name + "-shm"),
+        temporary_path.with_name(temporary_path.name + "-wal"),
+    ]
+
+
+def _cleanup_stale_cache_rebuild_artifacts(cache_db_path: Path) -> None:
+    """Remove stale temp rebuild artifacts left behind by interrupted cache bootstrap."""
+    for artifact in _cache_rebuild_artifacts(cache_db_path):
+        if artifact.exists():
+            artifact.unlink()
+
+
 def _initialize_cache_schema(connection: sqlite3.Connection) -> None:
     """Create the processed ClinVar cache schema if it does not already exist."""
     connection.executescript(
@@ -453,12 +477,11 @@ def _rebuild_cache_db(
 ) -> None:
     """Build a processed SQLite cache from the staged raw ClinVar files."""
     temporary_path = cache_db_path.with_suffix(cache_db_path.suffix + ".tmp")
-    if temporary_path.exists():
-        temporary_path.unlink()
+    _cleanup_stale_cache_rebuild_artifacts(cache_db_path)
 
     connection = _connect_cache_db(temporary_path)
     try:
-        _configure_cache_connection(connection)
+        _configure_cache_build_connection(connection)
         _initialize_cache_schema(connection)
         connection.execute("BEGIN")
         connection.execute("DELETE FROM variant_matches")
@@ -623,6 +646,7 @@ def _ensure_cache_db(
                 conflict_summary_path=conflict_summary_path,
                 submission_summary_path=submission_summary_path,
             ):
+                _cleanup_stale_cache_rebuild_artifacts(cache_db_path)
                 return
         finally:
             connection.close()
@@ -633,6 +657,29 @@ def _ensure_cache_db(
         conflict_summary_path=conflict_summary_path,
         submission_summary_path=submission_summary_path,
     )
+
+
+def prepare_processed_clinvar_cache(
+    *,
+    variant_summary_path: Path,
+    conflict_summary_path: Path | None = None,
+    submission_summary_path: Path | None = None,
+    cache_db_path: Path | None = None,
+    force_rebuild: bool = False,
+) -> Path:
+    """Build or refresh the processed ClinVar cache independently of a report run."""
+    resolved_cache_db_path = cache_db_path or _default_cache_db_path(variant_summary_path)
+    if force_rebuild and resolved_cache_db_path.exists():
+        resolved_cache_db_path.unlink()
+    if force_rebuild:
+        _cleanup_stale_cache_rebuild_artifacts(resolved_cache_db_path)
+    _ensure_cache_db(
+        resolved_cache_db_path,
+        variant_summary_path=variant_summary_path,
+        conflict_summary_path=conflict_summary_path,
+        submission_summary_path=submission_summary_path,
+    )
+    return resolved_cache_db_path
 
 
 def _load_variant_summary_index_from_cache(

@@ -19,7 +19,7 @@ from .models import (
     MatchStrategy,
     SubmissionEvidence,
 )
-from .vcf_parser import normalize_chromosome
+from .vcf_parser import normalize_allele, normalize_chromosome
 
 VARIANT_SUMMARY_COLUMNS = [
     "#AlleleID",
@@ -81,7 +81,7 @@ def _split_pipe_values(value: str | None) -> list[str]:
     results = []
     for part in value.split("|"):
         normalized = part.strip()
-        if normalized and normalized != "-":
+        if normalized and normalized.lower() not in {"-", "na", "not provided"}:
             results.append(normalized)
     return results
 
@@ -180,8 +180,8 @@ def load_variant_summary_index(
                 continue
 
             position_vcf = (row.PositionVCF or "").strip()
-            reference_allele = (row.ReferenceAlleleVCF or "").strip()
-            alternate_allele = (row.AlternateAlleleVCF or "").strip()
+            reference_allele = normalize_allele((row.ReferenceAlleleVCF or "").strip())
+            alternate_allele = normalize_allele((row.AlternateAlleleVCF or "").strip())
             chromosome = normalize_chromosome((row.Chromosome or "").strip())
             if not position_vcf or not chromosome:
                 continue

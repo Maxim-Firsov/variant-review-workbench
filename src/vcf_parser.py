@@ -23,6 +23,7 @@ GENE_INFO_KEYS = ("GENE", "GENE_SYMBOL", "SYMBOL", "HGNC")
 TRANSCRIPT_INFO_KEYS = ("TRANSCRIPT", "FEATURE", "FEATUREID")
 CONSEQUENCE_INFO_KEYS = ("CONSEQUENCE", "CSQ_CONSEQUENCE")
 IMPACT_INFO_KEYS = ("IMPACT",)
+MISSING_FIELD_VALUES = {"", ".", "-", "na", "not provided"}
 
 
 def open_variant_stream(input_path: Path) -> TextIO:
@@ -40,6 +41,11 @@ def normalize_chromosome(chromosome: str) -> str:
     if normalized.upper() == "M":
         return "MT"
     return normalized
+
+
+def normalize_allele(allele: str) -> str:
+    """Normalize allele text for deterministic coordinate matching."""
+    return allele.strip().upper()
 
 
 def parse_info_field(info_field: str) -> dict[str, str]:
@@ -63,11 +69,11 @@ def _extract_gene(info_map: dict[str, str]) -> str | None:
     """Extract a gene symbol from direct INFO keys or common annotation formats."""
     for key in GENE_INFO_KEYS:
         value = info_map.get(key)
-        if value and value != ".":
+        if value and value.strip().lower() not in MISSING_FIELD_VALUES:
             return value.split("|", 1)[0]
 
     gene_info = info_map.get("GENEINFO")
-    if gene_info:
+    if gene_info and gene_info.strip().lower() not in MISSING_FIELD_VALUES:
         return gene_info.split(":", 1)[0]
 
     ann_fields = _parse_ann_fields(info_map)
@@ -80,7 +86,7 @@ def _extract_transcript(info_map: dict[str, str]) -> str | None:
     """Extract a transcript identifier from common INFO keys or SnpEff ANN."""
     for key in TRANSCRIPT_INFO_KEYS:
         value = info_map.get(key)
-        if value and value != ".":
+        if value and value.strip().lower() not in MISSING_FIELD_VALUES:
             return value.split("|", 1)[0]
 
     ann_fields = _parse_ann_fields(info_map)
@@ -93,7 +99,7 @@ def _extract_consequence(info_map: dict[str, str]) -> str | None:
     """Extract consequence text from direct keys or SnpEff ANN."""
     for key in CONSEQUENCE_INFO_KEYS:
         value = info_map.get(key)
-        if value and value != ".":
+        if value and value.strip().lower() not in MISSING_FIELD_VALUES:
             return value
 
     ann_fields = _parse_ann_fields(info_map)
@@ -106,7 +112,7 @@ def _extract_impact(info_map: dict[str, str]) -> str | None:
     """Extract impact text from direct keys or SnpEff ANN."""
     for key in IMPACT_INFO_KEYS:
         value = info_map.get(key)
-        if value and value != ".":
+        if value and value.strip().lower() not in MISSING_FIELD_VALUES:
             return value
 
     ann_fields = _parse_ann_fields(info_map)
@@ -176,8 +182,8 @@ def _build_input_variant(
         assembly=assembly,
         chromosome=normalize_chromosome(chrom),
         position=int(pos),
-        reference_allele=ref,
-        alternate_allele=alt,
+        reference_allele=normalize_allele(ref),
+        alternate_allele=normalize_allele(alt),
         quality=None if qual == "." else qual,
         filter_status=None if filter_status == "." else filter_status,
         variant_id=normalized_id,

@@ -282,24 +282,54 @@ What the PharmGKB demo should immediately show:
 
 ## Demo Screenshots
 
-Base report hero and top findings:
+Base report hero:
 
-![Base report hero and top findings](data/screenshots/demo_report_hero_top_findings.png)
+![Base report hero](data/screenshots/report_hero.png)
 
-This view shows the high-level review summary plus the ranked findings that make the demo useful immediately:
+This view gives the fastest high-level read on the run:
+
+- `4` input variants
+- `4` ClinVar matches
+- `3` conflict-flagged findings
+- `3` high-priority findings
+
+Base report top findings:
+
+![Base report top findings](data/screenshots/top_findings.png)
+
+This view shows the ranked findings that make the demo useful immediately:
 
 - `BRCA1` as a high-priority conflict-flagged finding
 - `APC` as a strong non-conflict pathogenic finding
 - `DPYD` as a drug-response-oriented finding that becomes more interesting in the PharmGKB-enabled run
 
-Base report conflict queue and variant table:
+Base report conflict review queue:
 
-![Base report conflict queue and variant table](data/screenshots/demo_report_conflict_queue_variant_table.png)
+![Base report conflict review queue](data/screenshots/conflict_review_queue.png)
 
-This view shows the workbench behaving like an actual triage tool rather than a simple annotation dump:
+This view shows the workbench behaving like an actual triage queue rather than a simple annotation dump:
 
 - the conflict review queue is populated
-- the variant table exposes tier, score, ClinVar significance, review status, conflict flag, and workflow flags together
+- the highest-friction findings are isolated into a reviewable section
+
+Base report variant table:
+
+![Base report variant table](data/screenshots/variant_table.png)
+
+This view shows the denser analyst-facing table:
+
+- tier, score, ClinVar significance, review status, conflict flag, and workflow flags appear together
+- the row-level output mirrors the machine-readable exports
+
+PharmGKB-enabled source provenance:
+
+![PharmGKB-enabled source provenance](data/screenshots/source_provenance.png)
+
+This view shows the provenance section after a PharmGKB-enabled run:
+
+- ClinVar sources remain explicit
+- PharmGKB API and local PharmGKB cache are both recorded
+- the optional enrichment layer is visible without obscuring the ClinVar-first workflow
 
 ## Ranking Approach
 

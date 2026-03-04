@@ -2,11 +2,11 @@
 
 {% block content %}
   <section class="hero">
-    <p class="eyebrow">ReadMe View</p>
+    <p class="eyebrow">Project Overview</p>
     <h1>Variant Review Workbench</h1>
     <p>
-      This web interface preserves the existing CLI-first architecture. The core pipeline remains responsible
-      for ClinVar matching, conflict surfacing, optional PharmGKB enrichment, ranking, reporting, and artifact export.
+      This web interface sits on top of the existing CLI-first architecture. The shared pipeline remains responsible
+      for ClinVar matching, conflict surfacing, optional PharmGKB enrichment, ranking, reporting, and export generation.
     </p>
     <div class="actions">
       <a class="button" href="{{ url_for('home') }}">Open the run form</a>
@@ -14,64 +14,85 @@
     </div>
   </section>
 
-  <section class="panel" style="margin-top: 24px; padding: 28px;">
+  <section class="panel" style="margin-top: 24px;">
     <div class="docs-grid">
       <div class="doc-card">
         <strong>What this app is</strong>
-        <p>A thin analyst-facing layer over the current pipeline, not a rewrite.</p>
+        <p>A browser entry point for the same research pipeline and output contract already used by the CLI.</p>
       </div>
       <div class="doc-card">
         <strong>What it demonstrates</strong>
-        <p>Shared backend orchestration, real artifact generation, reproducibility metadata, and exportable reports.</p>
+        <p>Reusable backend orchestration, artifact provenance, a hosted report workflow, and deployment-aware runtime controls.</p>
       </div>
       <div class="doc-card">
         <strong>What it is not</strong>
-        <p>A clinical decision system, diagnostic portal, or multi-user PHI-ready platform.</p>
+        <p>A clinical decision system, diagnostic portal, or privacy boundary for patient-identifying data.</p>
       </div>
     </div>
   </section>
 
-  <section class="panel" style="margin-top: 24px; padding: 28px;">
+  <section class="panel" style="margin-top: 24px;">
     <div class="panel-grid">
       <div>
-        <h2>Current browser workflow</h2>
+        <h2>Browser workflow</h2>
         <ul>
-          <li>Upload a `.vcf` or `.vcf.gz` file</li>
-          <li>Select `GRCh37` or `GRCh38`</li>
-          <li>Optionally enable PharmGKB enrichment</li>
-          <li>Either open the report in the browser or jump straight to export</li>
+          <li>Upload a validated `.vcf` or `.vcf.gz` file.</li>
+          <li>Select the matching assembly: `GRCh37` or `GRCh38`.</li>
+          <li>Optionally enable PharmGKB enrichment for additional public PGx context.</li>
+          <li>Either open the report in the browser or redirect straight to HTML, JSON, or Markdown export.</li>
         </ul>
       </div>
       <div>
-        <h2>Current outputs</h2>
+        <h2>Generated outputs</h2>
         <ul>
-          <li>Embedded generated HTML report</li>
-          <li>Report export as HTML, JSON, or Markdown</li>
-          <li>Machine-readable status endpoint for each submitted run</li>
-          <li>Run-local artifact directory with reproducibility metadata</li>
+          <li>Embedded generated HTML report from the same report builder used by the CLI.</li>
+          <li>Export artifacts in HTML, JSON, and Markdown.</li>
+          <li>Machine-readable run status endpoint for polling.</li>
+          <li>Run-local artifact directories with reproducibility metadata and summary outputs.</li>
         </ul>
       </div>
     </div>
-    <p class="footer-note">The CLI remains the canonical engine. The browser interface is intentionally additive and non-destructive.</p>
+    <p class="footer-note">The browser interface remains additive. The CLI is still the canonical execution path for local scripted use.</p>
   </section>
 
-  <section class="panel" style="margin-top: 24px; padding: 28px;">
+  <section class="panel" style="margin-top: 24px;">
     <div class="panel-grid">
       <div>
         <h2>Hosted demo guardrails</h2>
         <ul>
           <li>Research-use only, with no clinical decision support claims.</li>
           <li>Uploads are capped at {{ web_scope.max_upload_mb }} MB per request.</li>
-          <li>Submitted files are retained in run-local storage for roughly {{ web_scope.run_retention_hours }} hour{% if web_scope.run_retention_hours != 1 %}s{% endif %}.</li>
+          <li>Submitted files are retained in run-local storage for roughly {{ web_scope.run_retention_hours }} hour{% if web_scope.run_retention_hours != 1 %}s{% endif %}, subject to cleanup timing.</li>
           <li>Do not submit protected health information or production patient data.</li>
         </ul>
       </div>
       <div>
         <h2>Deployment notes</h2>
         <ul>
-          <li>Persistent disk is intended for ClinVar cache reuse and temporary run workspaces.</li>
-          <li>The `/healthz` endpoint should be used only after required ClinVar files exist on disk.</li>
-          <li>Hosted runs share backend code with the CLI, but the site is not a multi-tenant privacy boundary.</li>
+          <li>The mounted disk stores raw ClinVar inputs, temporary run workspaces, and a shared processed ClinVar cache.</li>
+          <li>The processed ClinVar cache should be built offline and uploaded before treating the hosted site as ready.</li>
+          <li>`/healthz` should be used only after required runtime paths and ClinVar inputs exist on disk.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-top: 24px;">
+    <div class="panel-grid">
+      <div>
+        <h2>ReadMe highlights</h2>
+        <ul>
+          <li>The repository includes both CLI and web quick-start paths.</li>
+          <li>The processed ClinVar cache is now documented as a reusable shared dependency, not a per-query warm-up.</li>
+          <li>`DEPLOYMENT.md` captures the Render disk layout, environment variables, and smoke-test workflow.</li>
+        </ul>
+      </div>
+      <div>
+        <h2>Why this matters</h2>
+        <ul>
+          <li>The hosted demo now communicates the same process as the repository docs.</li>
+          <li>Users are less likely to confuse run retention with cache build timing.</li>
+          <li>The web app presents itself as a serious review tool rather than an exploratory mockup.</li>
         </ul>
       </div>
     </div>

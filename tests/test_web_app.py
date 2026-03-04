@@ -174,20 +174,22 @@ class WebAppTests(unittest.TestCase):
         response = self.client.get("/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Run the workbench without touching the command line.", response.data)
+        self.assertIn(b"Review a VCF through the same pipeline used by the CLI.", response.data)
         self.assertIn(b"Run Setup", response.data)
         self.assertIn(b'enctype="multipart/form-data"', response.data)
         self.assertIn(b"3 Formats", response.data)
         self.assertIn(b"Research-use only.", response.data)
         self.assertIn(b"25 MB", response.data)
+        self.assertIn(b"Individual uploads do not trigger a full cache build.", response.data)
 
     def test_docs_page_renders_project_context(self) -> None:
         response = self.client.get("/docs")
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Variant Review Workbench", response.data)
-        self.assertIn(b"Current browser workflow", response.data)
+        self.assertIn(b"Browser workflow", response.data)
         self.assertIn(b"Hosted demo guardrails", response.data)
+        self.assertIn(b"processed ClinVar cache should be built offline", response.data)
 
     def test_health_check_returns_ok(self) -> None:
         response = self.client.get("/healthz")
@@ -274,7 +276,7 @@ class WebAppTests(unittest.TestCase):
         response = self.client.get(create_response.headers["Location"])
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Generated report, artifacts, and run state in one place.", response.data)
+        self.assertIn(b"Review the generated report and exported artifacts.", response.data)
         self.assertIn(b"status-badge succeeded", response.data)
         self.assertIn(b"html", response.data)
         self.assertIn(b"The report and export artifacts are ready.", response.data)

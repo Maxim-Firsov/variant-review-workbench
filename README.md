@@ -148,7 +148,7 @@ Each run writes:
 This tool now uses a persistent processed ClinVar cache.
 
 - by default the CLI builds and reuses a SQLite cache at `data/clinvar/processed/clinvar_lookup_cache.sqlite3`
-- the first run against a new raw ClinVar snapshot is a preprocessing run and can take a long time
+- the first local run against a new raw ClinVar snapshot is a preprocessing run and can take a long time
 - after that cache exists, repeated runs against the same snapshot should be much faster
 
 Observed timing on the staged repository data:
@@ -158,9 +158,10 @@ Observed timing on the staged repository data:
 
 What this means in practice:
 
-- if the tool appears slow on the first real run, that is expected
-- that first run is building a local queryable index from the raw ClinVar files
+- if a fresh local environment appears slow on the first real run, that is expected
+- that first local run is building a reusable queryable index from the raw ClinVar files
 - the warm-run path is the intended day-to-day workflow
+- hosted deployments should not rely on the first public request to perform this build
 
 Cache controls:
 
@@ -219,6 +220,12 @@ Web flow:
 4. Either open the browser report or go straight to `html`, `json`, or `md` export.
 
 For deployment-specific details, see [DEPLOYMENT.md](C:/Code/GitPortfolio/variant-review-workbench/DEPLOYMENT.md).
+
+Hosted process summary:
+
+- the web app reuses a shared processed ClinVar cache rather than building one per uploaded VCF
+- `VRW_RUN_RETENTION_HOURS` applies to temporary run workspaces, not to cache warm-up or user cooldown
+- the recommended hosted workflow is to build `clinvar_lookup_cache.sqlite3` offline and upload it to the mounted disk before public use
 
 Hosted/runtime environment variables:
 

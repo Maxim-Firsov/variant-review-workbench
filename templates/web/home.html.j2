@@ -4,58 +4,72 @@
   <section class="hero">
     <div class="hero-grid">
       <div>
-        <p class="eyebrow">Browser Interface</p>
+        <p class="eyebrow">Analyst Interface</p>
         <div class="chip-row">
           <span class="chip">ClinVar-first</span>
           <span class="chip">Research use only</span>
-          <span class="chip">Shared CLI backend</span>
+          <span class="chip">Shared backend pipeline</span>
         </div>
-        <h1>Run the workbench without touching the command line.</h1>
-        <p>
-          This web layer is a thin interface over the existing pipeline. Upload a VCF, pick the reference
-          assembly, and choose whether you want a browser report or a direct export.
+        <h1>Review a VCF through the same pipeline used by the CLI.</h1>
+        <p class="hero-lead">
+          The browser workflow reuses the existing ClinVar-first annotation, ranking, reporting, and export
+          stack. It is designed for review, demonstration, and reproducible artifact generation, not for
+          clinical operations.
         </p>
         <p>
-          Uploaded files are stored in isolated per-run directories and removed opportunistically after
-          {{ web_scope.run_retention_hours }} hour{% if web_scope.run_retention_hours != 1 %}s{% endif %}.
-          Avoid submitting sensitive or patient-identifying data to the hosted demo.
+          Hosted runs write into isolated workspaces and the service reuses a shared processed ClinVar cache.
+          The retention window of {{ web_scope.run_retention_hours }} hour{% if web_scope.run_retention_hours != 1 %}s{% endif %}
+          applies to run workspaces, not to cache warm-up per query.
         </p>
         <div class="actions">
           <a class="button" href="#run-setup">Start a run</a>
-          <a class="button ghost" href="{{ url_for('docs') }}">Read the details</a>
+          <a class="button ghost" href="{{ url_for('docs') }}">Review workflow details</a>
         </div>
       </div>
       <div class="meta-card">
-        <strong>Current web skeleton</strong>
-        <p>Available now: homepage, docs page, job submission, run isolation, real report generation, and status routing.</p>
-        <p>Next: browser-visible export controls and export-only downloads.</p>
+        <strong>Hosted demo profile</strong>
+        <p>The site accepts a VCF upload, runs the shared pipeline, renders the generated HTML report, and exposes HTML, JSON, or Markdown exports from the completed run.</p>
+        <dl class="data-list">
+          <div>
+            <dt>Input cap</dt>
+            <dd>{{ web_scope.max_upload_mb }} MB</dd>
+          </div>
+          <div>
+            <dt>Assemblies</dt>
+            <dd>GRCh37 / GRCh38</dd>
+          </div>
+          <div>
+            <dt>Retention window</dt>
+            <dd>{{ web_scope.run_retention_hours }}h run cleanup</dd>
+          </div>
+        </dl>
       </div>
     </div>
   </section>
 
-  <section class="panel" style="margin-top: 24px; padding: 28px;">
+  <section class="panel" style="margin-top: 24px;">
     <div class="fact-grid">
       <div class="fact-card">
         <strong>Input</strong>
         <span class="metric">VCF</span>
-        <p>Accepts `.vcf` and `.vcf.gz` uploads up to {{ web_scope.max_upload_mb }} MB per submission.</p>
+        <p>Accepts validated `.vcf` and `.vcf.gz` uploads up to {{ web_scope.max_upload_mb }} MB per submission.</p>
       </div>
       <div class="fact-card">
         <strong>Execution</strong>
         <span class="metric">Shared</span>
-        <p>The browser uses the same ClinVar-first backend pipeline and report builder as the CLI.</p>
+        <p>The web layer calls the same backend service, reporting code, and export generation paths as the CLI.</p>
       </div>
       <div class="fact-card">
         <strong>Outputs</strong>
         <span class="metric">3 Formats</span>
-        <p>Download the generated report as HTML, JSON, or Markdown after the run completes.</p>
+        <p>Open the report in-browser or download the resulting HTML, JSON, or Markdown artifact after completion.</p>
       </div>
     </div>
   </section>
 
-  <section class="panel" id="run-setup" style="margin-top: 24px; padding: 28px;">
+  <section class="panel" id="run-setup" style="margin-top: 24px;">
     <h2>Run Setup</h2>
-    <p class="muted">Choose a VCF, pick the assembly, and decide whether to open the report in the browser or go straight to a file export.</p>
+    <p class="muted">Submit a VCF, confirm the coordinate system, and choose whether the run should open in the browser or redirect straight to an export artifact.</p>
     <div class="subtle-divider"></div>
     <form class="stack" method="post" action="{{ url_for('create_run') }}" enctype="multipart/form-data" data-run-form>
       {% if form_error %}
@@ -106,9 +120,9 @@
       </div>
 
       <div class="notice">
-        <strong>Usage boundary</strong>
-        <p>This interface is for research review and portfolio demonstration only. Do not treat the output as diagnosis, treatment guidance, or production-grade data handling.</p>
-        <p>Uploads are stored on the server for the active run and may persist until the retention window expires.</p>
+        <strong>Hosted process</strong>
+        <p>The shared ClinVar cache is prepared ahead of time and reused across hosted runs. Individual uploads do not trigger a full cache build.</p>
+        <p>Run workspaces are temporary and may remain on disk until cleanup occurs. Do not submit protected health information or production patient data.</p>
       </div>
 
       <div class="actions">
@@ -116,9 +130,9 @@
           <span class="loading-label-default">Run in browser</span>
           <span class="loading-label-active">Submitting run...</span>
         </button>
-        <a class="button secondary" href="{{ url_for('docs') }}">Read project details</a>
+        <a class="button secondary" href="{{ url_for('docs') }}">Open overview</a>
       </div>
-      <p class="footer-note">Research-use only. The browser layer preserves the existing non-clinical scope, shared backend logic, and artifact provenance model.</p>
+      <p class="footer-note">This interface remains within the project’s original scope: research triage, reproducible outputs, and transparent artifact provenance.</p>
     </form>
   </section>
 {% endblock %}

@@ -231,6 +231,8 @@ class PharmGKBEnrichmentTests(unittest.TestCase):
                     variant_summary=str(variant_summary),
                     conflict_summary=None,
                     submission_summary=None,
+                    clinvar_cache_db=None,
+                    disable_clinvar_cache=False,
                     out_dir=str(out_dir),
                     enable_pharmgkb=True,
                 )

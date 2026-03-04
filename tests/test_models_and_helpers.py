@@ -9,6 +9,7 @@ from pathlib import Path
 from src.clinvar_index import (
     ClinVarIndex,
     enrich_index_with_supporting_data,
+    load_clinvar_index,
     load_conflict_lookup,
     load_submission_lookup,
     load_variant_summary_index,
@@ -431,6 +432,193 @@ class ModelAndHelperTests(unittest.TestCase):
             )
 
         self.assertEqual(set(index.exact_matches.keys()), {("GRCh38", "17", 43045702, "A", "G")})
+
+    def test_load_clinvar_index_builds_and_uses_processed_cache(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            raw_dir = root / "data" / "clinvar" / "raw"
+            processed_dir = root / "data" / "clinvar" / "processed"
+            raw_dir.mkdir(parents=True)
+            processed_dir.mkdir(parents=True)
+
+            variant_summary = raw_dir / "variant_summary.txt.gz"
+            with gzip.open(variant_summary, "wt", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle, delimiter="\t")
+                writer.writerow(VARIANT_SUMMARY_HEADER)
+                writer.writerow(
+                    [
+                        "10",
+                        "single nucleotide variant",
+                        "TP53 example",
+                        "TP53",
+                        "Pathogenic",
+                        "Jan 01, 2025",
+                        "Li-Fraumeni syndrome",
+                        "reviewed by expert panel",
+                        "germline",
+                        "GRCh38",
+                        "17",
+                        "1234",
+                        "43045702",
+                        "A",
+                        "G",
+                        "RCV000000001",
+                    ]
+                )
+
+            conflict_path = raw_dir / "summary_of_conflicting_interpretations.txt"
+            with conflict_path.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle, delimiter="\t")
+                writer.writerow(
+                    [
+                        "#Gene_Symbol",
+                        "NCBI_Variation_ID",
+                        "ClinVar_Preferred",
+                        "Submitter1",
+                        "Submitter1_SCV",
+                        "Submitter1_ClinSig",
+                        "Submitter1_LastEval",
+                        "Submitter1_ReviewStatus",
+                        "Submitter1_Sub_Condition",
+                        "Submitter1_Description",
+                        "Submitter2",
+                        "Submitter2_SCV",
+                        "Submitter2_ClinSig",
+                        "Submitter2_LastEval",
+                        "Submitter2_ReviewStatus",
+                        "Submitter2_Sub_Condition",
+                        "Submitter2_Description",
+                        "Rank_diff",
+                        "Conflict_Reported",
+                        "Variant_type",
+                        "Submitter1_Method",
+                        "Submitter2_Method",
+                    ]
+                )
+                writer.writerow(["TP53", "1234", "var", "A", "SCV1", "Pathogenic", "", "", "", "", "B", "SCV2", "Benign", "", "", "", "", "1", "yes", "SNV", "", ""])
+
+            submission_path = raw_dir / "submission_summary.txt.gz"
+            with gzip.open(submission_path, "wt", encoding="utf-8", newline="") as handle:
+                handle.write("##Overview\n")
+                handle.write("#VariationID\tClinicalSignificance\tDateLastEvaluated\tDescription\tSubmittedPhenotypeInfo\tReportedPhenotypeInfo\tReviewStatus\tCollectionMethod\tOriginCounts\tSubmitter\tSCV\tSubmittedGeneSymbol\tExplanationOfInterpretation\tSomaticClinicalImpact\tOncogenicity\tContributesToAggregateClassification\n")
+                handle.write("1234\tPathogenic\tJan 01, 2025\t-\t-\t-\treviewed by expert panel\tclinical testing\tgermline:1\tLab A\tSCV1\tTP53\t-\t-\t-\tyes\n")
+
+            index = load_clinvar_index(
+                variant_summary,
+                conflict_path,
+                submission_path,
+                target_variant_keys={("GRCh38", "17", 43045702, "A", "G")},
+            )
+
+            cache_db = processed_dir / "clinvar_lookup_cache.sqlite3"
+            self.assertTrue(cache_db.exists())
+            self.assertIn(("GRCh38", "17", 43045702, "A", "G"), index.exact_matches)
+            self.assertTrue(index.conflicts_by_variation_id[1234].has_conflict)
+            self.assertEqual(index.submissions_by_variation_id[1234].submitter_names, ["Lab A"])
+
+    def test_load_clinvar_index_rebuilds_processed_cache_when_source_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            raw_dir = root / "data" / "clinvar" / "raw"
+            processed_dir = root / "data" / "clinvar" / "processed"
+            raw_dir.mkdir(parents=True)
+            processed_dir.mkdir(parents=True)
+
+            variant_summary = raw_dir / "variant_summary.txt.gz"
+            conflict_path = raw_dir / "summary_of_conflicting_interpretations.txt"
+
+            with conflict_path.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle, delimiter="\t")
+                writer.writerow(
+                    [
+                        "#Gene_Symbol",
+                        "NCBI_Variation_ID",
+                        "ClinVar_Preferred",
+                        "Submitter1",
+                        "Submitter1_SCV",
+                        "Submitter1_ClinSig",
+                        "Submitter1_LastEval",
+                        "Submitter1_ReviewStatus",
+                        "Submitter1_Sub_Condition",
+                        "Submitter1_Description",
+                        "Submitter2",
+                        "Submitter2_SCV",
+                        "Submitter2_ClinSig",
+                        "Submitter2_LastEval",
+                        "Submitter2_ReviewStatus",
+                        "Submitter2_Sub_Condition",
+                        "Submitter2_Description",
+                        "Rank_diff",
+                        "Conflict_Reported",
+                        "Variant_type",
+                        "Submitter1_Method",
+                        "Submitter2_Method",
+                    ]
+                )
+
+            with gzip.open(variant_summary, "wt", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle, delimiter="\t")
+                writer.writerow(VARIANT_SUMMARY_HEADER)
+                writer.writerow(
+                    [
+                        "10",
+                        "single nucleotide variant",
+                        "TP53 example",
+                        "TP53",
+                        "Pathogenic",
+                        "Jan 01, 2025",
+                        "Li-Fraumeni syndrome",
+                        "reviewed by expert panel",
+                        "germline",
+                        "GRCh38",
+                        "17",
+                        "1234",
+                        "43045702",
+                        "A",
+                        "G",
+                        "RCV000000001",
+                    ]
+                )
+
+            first_index = load_clinvar_index(
+                variant_summary,
+                conflict_path,
+                None,
+                target_variant_keys={("GRCh38", "17", 43045702, "A", "G")},
+            )
+            self.assertEqual(first_index.exact_matches[("GRCh38", "17", 43045702, "A", "G")].clinical_significance, "Pathogenic")
+
+            with gzip.open(variant_summary, "wt", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle, delimiter="\t")
+                writer.writerow(VARIANT_SUMMARY_HEADER)
+                writer.writerow(
+                    [
+                        "10",
+                        "single nucleotide variant",
+                        "TP53 example",
+                        "TP53",
+                        "Benign",
+                        "Jan 01, 2025",
+                        "Li-Fraumeni syndrome",
+                        "reviewed by expert panel",
+                        "germline",
+                        "GRCh38",
+                        "17",
+                        "1234",
+                        "43045702",
+                        "A",
+                        "G",
+                        "RCV000000001",
+                    ]
+                )
+
+            second_index = load_clinvar_index(
+                variant_summary,
+                conflict_path,
+                None,
+                target_variant_keys={("GRCh38", "17", 43045702, "A", "G")},
+            )
+            self.assertEqual(second_index.exact_matches[("GRCh38", "17", 43045702, "A", "G")].clinical_significance, "Benign")
 
 
 if __name__ == "__main__":

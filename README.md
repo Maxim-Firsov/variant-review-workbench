@@ -127,6 +127,31 @@ Each run writes:
 - `report.html`
   - analyst-facing HTML report with top findings, conflicts, methods, and limitations
 
+## Important Runtime Note
+
+This tool now uses a persistent processed ClinVar cache.
+
+- by default the CLI builds and reuses a SQLite cache at `data/clinvar/processed/clinvar_lookup_cache.sqlite3`
+- the first run against a new raw ClinVar snapshot is a preprocessing run and can take a long time
+- after that cache exists, repeated runs against the same snapshot should be much faster
+
+Observed timing on the staged repository data:
+
+- first run with cache build: about `1402` seconds, about `23 minutes 22 seconds`
+- warm run reusing the cache: about `2.83` seconds
+
+What this means in practice:
+
+- if the tool appears slow on the first real run, that is expected
+- that first run is building a local queryable index from the raw ClinVar files
+- the warm-run path is the intended day-to-day workflow
+
+Cache controls:
+
+- default cache location: `data/clinvar/processed/clinvar_lookup_cache.sqlite3`
+- override location: `--clinvar-cache-db <path>`
+- disable cache and force raw-file reads: `--disable-clinvar-cache`
+
 ## Setup
 
 ```powershell
@@ -137,6 +162,8 @@ python -m pip install -r requirements.txt
 
 ### Base ClinVar Run
 
+This command will build the processed ClinVar cache on first use if it does not already exist.
+
 ```powershell
 python -m src.cli `
   --input data\demo.vcf `
@@ -145,6 +172,34 @@ python -m src.cli `
   --conflict-summary data\clinvar\raw\summary_of_conflicting_interpretations.txt `
   --submission-summary data\clinvar\raw\submission_summary.txt.gz `
   --out-dir outputs\demo_run
+```
+
+### Cache Control Examples
+
+Use a specific cache path:
+
+```powershell
+python -m src.cli `
+  --input data\demo.vcf `
+  --assembly GRCh38 `
+  --variant-summary data\clinvar\raw\variant_summary.txt.gz `
+  --conflict-summary data\clinvar\raw\summary_of_conflicting_interpretations.txt `
+  --submission-summary data\clinvar\raw\submission_summary.txt.gz `
+  --clinvar-cache-db data\clinvar\processed\clinvar_lookup_cache.sqlite3 `
+  --out-dir outputs\demo_run
+```
+
+Disable the processed cache entirely:
+
+```powershell
+python -m src.cli `
+  --input data\demo.vcf `
+  --assembly GRCh38 `
+  --variant-summary data\clinvar\raw\variant_summary.txt.gz `
+  --conflict-summary data\clinvar\raw\summary_of_conflicting_interpretations.txt `
+  --submission-summary data\clinvar\raw\submission_summary.txt.gz `
+  --disable-clinvar-cache `
+  --out-dir outputs\demo_run_no_cache
 ```
 
 ### Run With PharmGKB Enrichment

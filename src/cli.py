@@ -43,6 +43,16 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional path to submission_summary.txt.gz.",
     )
+    parser.add_argument(
+        "--clinvar-cache-db",
+        default=None,
+        help="Optional path to a persistent processed ClinVar SQLite cache.",
+    )
+    parser.add_argument(
+        "--disable-clinvar-cache",
+        action="store_true",
+        help="Disable the persistent processed ClinVar cache and read raw files directly.",
+    )
     parser.add_argument("--out-dir", required=True, help="Directory where run outputs will be written.")
     parser.add_argument(
         "--enable-pharmgkb",
@@ -130,6 +140,8 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Path]:
         conflict_summary_path=Path(args.conflict_summary) if args.conflict_summary else None,
         submission_summary_path=Path(args.submission_summary) if args.submission_summary else None,
         target_variant_keys={variant.variant_key for variant in input_variants},
+        cache_db_path=Path(args.clinvar_cache_db) if args.clinvar_cache_db else None,
+        use_processed_cache=not bool(args.disable_clinvar_cache),
     )
 
     annotated_variants = annotate_variants(input_variants, clinvar_index)

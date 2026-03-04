@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import csv
 import gzip
+import json
+import sqlite3
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -41,6 +43,7 @@ VARIANT_SUMMARY_COLUMNS = [
     "RCVaccession",
 ]
 VariantKey = tuple[str, str, int, str, str]
+CACHE_DB_FILENAME = "clinvar_lookup_cache.sqlite3"
 
 
 def _configure_csv_field_limit() -> None:
@@ -144,6 +147,140 @@ def _build_provenance(source_name: str, source_kind: str, source_path: Path) -> 
     )
 
 
+def _default_cache_db_path(variant_summary_path: Path) -> Path:
+    """Choose a stable processed-cache location near the raw ClinVar files."""
+    parent = variant_summary_path.parent
+    if parent.name == "raw":
+        processed_dir = parent.parent / "processed"
+        processed_dir.mkdir(parents=True, exist_ok=True)
+        return processed_dir / CACHE_DB_FILENAME
+    return parent / CACHE_DB_FILENAME
+
+
+def _source_signature(path: Path | None) -> dict[str, object] | None:
+    """Capture a lightweight signature used to invalidate processed cache state."""
+    if path is None:
+        return None
+    stat = path.stat()
+    return {
+        "path": str(path.resolve()),
+        "size": stat.st_size,
+        "mtime_ns": stat.st_mtime_ns,
+    }
+
+
+def _connect_cache_db(cache_db_path: Path) -> sqlite3.Connection:
+    """Open the local processed ClinVar cache database."""
+    cache_db_path.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(cache_db_path)
+    connection.row_factory = sqlite3.Row
+    return connection
+
+
+def _configure_cache_connection(connection: sqlite3.Connection) -> None:
+    """Apply pragmatic SQLite settings for local processed ClinVar cache usage."""
+    connection.execute("PRAGMA journal_mode=WAL")
+    connection.execute("PRAGMA synchronous=NORMAL")
+    connection.execute("PRAGMA temp_store=MEMORY")
+
+
+def _initialize_cache_schema(connection: sqlite3.Connection) -> None:
+    """Create the processed ClinVar cache schema if it does not already exist."""
+    connection.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS metadata (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS variant_matches (
+            assembly TEXT NOT NULL,
+            chromosome TEXT NOT NULL,
+            position INTEGER NOT NULL,
+            reference_allele TEXT NOT NULL,
+            alternate_allele TEXT NOT NULL,
+            variation_id INTEGER NOT NULL,
+            allele_id INTEGER NOT NULL,
+            accession TEXT,
+            preferred_name TEXT,
+            gene TEXT,
+            condition_names TEXT NOT NULL,
+            clinical_significance TEXT,
+            review_status TEXT,
+            review_stars INTEGER,
+            interpretation_origin TEXT,
+            last_evaluated TEXT,
+            review_stars_sort INTEGER NOT NULL,
+            significance_rank INTEGER NOT NULL,
+            PRIMARY KEY (assembly, chromosome, position, reference_allele, alternate_allele)
+        );
+
+        CREATE TABLE IF NOT EXISTS conflicts (
+            variation_id INTEGER PRIMARY KEY,
+            conflict_significance TEXT NOT NULL,
+            submitter_count INTEGER,
+            summary_text TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS submissions (
+            variation_id INTEGER PRIMARY KEY,
+            total_submissions INTEGER,
+            submitter_names TEXT NOT NULL,
+            review_statuses TEXT NOT NULL,
+            clinical_significances TEXT NOT NULL
+        );
+        """
+    )
+
+
+def _read_cache_metadata(connection: sqlite3.Connection, key: str) -> dict[str, object] | None:
+    """Read a JSON metadata value from the processed ClinVar cache."""
+    row = connection.execute("SELECT value FROM metadata WHERE key = ?", (key,)).fetchone()
+    if row is None:
+        return None
+    return json.loads(row["value"])
+
+
+def _cache_is_current(
+    connection: sqlite3.Connection,
+    *,
+    variant_summary_path: Path,
+    conflict_summary_path: Path | None,
+    submission_summary_path: Path | None,
+) -> bool:
+    """Return whether the processed ClinVar cache matches the current raw files."""
+    expected = {
+        "variant_summary": _source_signature(variant_summary_path),
+        "conflict_summary": _source_signature(conflict_summary_path),
+        "submission_summary": _source_signature(submission_summary_path),
+    }
+    observed = {
+        "variant_summary": _read_cache_metadata(connection, "variant_summary"),
+        "conflict_summary": _read_cache_metadata(connection, "conflict_summary"),
+        "submission_summary": _read_cache_metadata(connection, "submission_summary"),
+    }
+    return observed == expected
+
+
+def _write_cache_metadata(
+    connection: sqlite3.Connection,
+    *,
+    variant_summary_path: Path,
+    conflict_summary_path: Path | None,
+    submission_summary_path: Path | None,
+) -> None:
+    """Persist source signatures for cache invalidation."""
+    payloads = {
+        "variant_summary": _source_signature(variant_summary_path),
+        "conflict_summary": _source_signature(conflict_summary_path),
+        "submission_summary": _source_signature(submission_summary_path),
+    }
+    connection.executemany(
+        "INSERT OR REPLACE INTO metadata(key, value) VALUES(?, ?)",
+        [(key, json.dumps(value, sort_keys=True)) for key, value in payloads.items()],
+    )
+
+
 def _parse_int_field(value: str | None) -> int | None:
     """Parse an integer field from ClinVar text, returning None for blanks."""
     if value is None:
@@ -200,6 +337,86 @@ def _build_match_from_variant_summary_row(row: dict[str, str]) -> ClinVarMatch |
     )
 
 
+def _serialize_json_list(items: list[str]) -> str:
+    """Persist a list-valued field into the processed cache."""
+    return json.dumps(items, separators=(",", ":"))
+
+
+def _deserialize_json_list(payload: str | None) -> list[str]:
+    """Read a cached list-valued field from the processed cache."""
+    if not payload:
+        return []
+    return list(json.loads(payload))
+
+
+def _variant_match_row_from_candidate(candidate: ClinVarMatch) -> tuple[object, ...]:
+    """Convert a normalized ClinVar candidate into a cache-table row."""
+    return (
+        candidate.assembly.value,
+        candidate.chromosome,
+        candidate.position,
+        candidate.reference_allele,
+        candidate.alternate_allele,
+        candidate.variation_id,
+        candidate.allele_id,
+        candidate.accession,
+        candidate.preferred_name,
+        candidate.gene,
+        _serialize_json_list(candidate.condition_names),
+        candidate.clinical_significance,
+        candidate.review_status,
+        candidate.review_stars,
+        candidate.interpretation_origin,
+        candidate.last_evaluated,
+        candidate.review_stars if candidate.review_stars is not None else -1,
+        1 if candidate.clinical_significance else 0,
+    )
+
+
+def _variant_match_from_cache_row(row: sqlite3.Row) -> ClinVarMatch:
+    """Rehydrate a ClinVar exact match from the processed cache."""
+    return ClinVarMatch(
+        matched=True,
+        match_strategy=MatchStrategy.EXACT,
+        assembly=GenomeAssembly(row["assembly"]),
+        chromosome=row["chromosome"],
+        position=row["position"],
+        reference_allele=row["reference_allele"],
+        alternate_allele=row["alternate_allele"],
+        variation_id=row["variation_id"],
+        allele_id=row["allele_id"],
+        accession=row["accession"],
+        preferred_name=row["preferred_name"],
+        gene=row["gene"],
+        condition_names=_deserialize_json_list(row["condition_names"]),
+        clinical_significance=row["clinical_significance"],
+        review_status=row["review_status"],
+        review_stars=row["review_stars"],
+        interpretation_origin=row["interpretation_origin"],
+        last_evaluated=row["last_evaluated"],
+    )
+
+
+def _conflict_from_cache_row(row: sqlite3.Row) -> ConflictSummary:
+    """Rehydrate a cached conflict summary."""
+    return ConflictSummary(
+        has_conflict=True,
+        conflict_significance=_deserialize_json_list(row["conflict_significance"]),
+        submitter_count=row["submitter_count"],
+        summary_text=row["summary_text"],
+    )
+
+
+def _submission_from_cache_row(row: sqlite3.Row) -> SubmissionEvidence:
+    """Rehydrate cached submission aggregates."""
+    return SubmissionEvidence(
+        total_submissions=row["total_submissions"],
+        submitter_names=_deserialize_json_list(row["submitter_names"]),
+        review_statuses=_deserialize_json_list(row["review_statuses"]),
+        clinical_significances=_deserialize_json_list(row["clinical_significances"]),
+    )
+
+
 @dataclass(slots=True)
 class ClinVarIndex:
     """In-memory ClinVar lookup tables used by the annotation stage."""
@@ -225,6 +442,235 @@ class ClinVarIndex:
             if submission is not None:
                 resolved.submissions = submission.model_copy(deep=True)
         return resolved
+
+
+def _rebuild_cache_db(
+    cache_db_path: Path,
+    *,
+    variant_summary_path: Path,
+    conflict_summary_path: Path | None,
+    submission_summary_path: Path | None,
+) -> None:
+    """Build a processed SQLite cache from the staged raw ClinVar files."""
+    temporary_path = cache_db_path.with_suffix(cache_db_path.suffix + ".tmp")
+    if temporary_path.exists():
+        temporary_path.unlink()
+
+    connection = _connect_cache_db(temporary_path)
+    try:
+        _configure_cache_connection(connection)
+        _initialize_cache_schema(connection)
+        connection.execute("BEGIN")
+        connection.execute("DELETE FROM variant_matches")
+        connection.execute("DELETE FROM conflicts")
+        connection.execute("DELETE FROM submissions")
+        connection.execute("DELETE FROM metadata")
+
+        with _open_text_stream(variant_summary_path) as handle:
+            reader = csv.DictReader(handle, delimiter="\t")
+            batch: list[tuple[object, ...]] = []
+            for raw_row in reader:
+                row = {key: (value or "").strip() for key, value in raw_row.items()}
+                candidate = _build_match_from_variant_summary_row(row)
+                if candidate is None:
+                    continue
+                batch.append(_variant_match_row_from_candidate(candidate))
+                if len(batch) >= 5_000:
+                    connection.executemany(
+                        """
+                        INSERT INTO variant_matches(
+                            assembly, chromosome, position, reference_allele, alternate_allele,
+                            variation_id, allele_id, accession, preferred_name, gene,
+                            condition_names, clinical_significance, review_status, review_stars,
+                            interpretation_origin, last_evaluated, review_stars_sort, significance_rank
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(assembly, chromosome, position, reference_allele, alternate_allele) DO UPDATE SET
+                            variation_id = excluded.variation_id,
+                            allele_id = excluded.allele_id,
+                            accession = excluded.accession,
+                            preferred_name = excluded.preferred_name,
+                            gene = excluded.gene,
+                            condition_names = excluded.condition_names,
+                            clinical_significance = excluded.clinical_significance,
+                            review_status = excluded.review_status,
+                            review_stars = excluded.review_stars,
+                            interpretation_origin = excluded.interpretation_origin,
+                            last_evaluated = excluded.last_evaluated,
+                            review_stars_sort = excluded.review_stars_sort,
+                            significance_rank = excluded.significance_rank
+                        WHERE
+                            excluded.review_stars_sort > variant_matches.review_stars_sort OR
+                            (
+                                excluded.review_stars_sort = variant_matches.review_stars_sort AND
+                                excluded.significance_rank > variant_matches.significance_rank
+                            ) OR
+                            (
+                                excluded.review_stars_sort = variant_matches.review_stars_sort AND
+                                excluded.significance_rank = variant_matches.significance_rank AND
+                                excluded.variation_id > variant_matches.variation_id
+                            )
+                        """,
+                        batch,
+                    )
+                    batch.clear()
+            if batch:
+                connection.executemany(
+                    """
+                    INSERT INTO variant_matches(
+                        assembly, chromosome, position, reference_allele, alternate_allele,
+                        variation_id, allele_id, accession, preferred_name, gene,
+                        condition_names, clinical_significance, review_status, review_stars,
+                        interpretation_origin, last_evaluated, review_stars_sort, significance_rank
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(assembly, chromosome, position, reference_allele, alternate_allele) DO UPDATE SET
+                        variation_id = excluded.variation_id,
+                        allele_id = excluded.allele_id,
+                        accession = excluded.accession,
+                        preferred_name = excluded.preferred_name,
+                        gene = excluded.gene,
+                        condition_names = excluded.condition_names,
+                        clinical_significance = excluded.clinical_significance,
+                        review_status = excluded.review_status,
+                        review_stars = excluded.review_stars,
+                        interpretation_origin = excluded.interpretation_origin,
+                        last_evaluated = excluded.last_evaluated,
+                        review_stars_sort = excluded.review_stars_sort,
+                        significance_rank = excluded.significance_rank
+                    WHERE
+                        excluded.review_stars_sort > variant_matches.review_stars_sort OR
+                        (
+                            excluded.review_stars_sort = variant_matches.review_stars_sort AND
+                            excluded.significance_rank > variant_matches.significance_rank
+                        ) OR
+                        (
+                            excluded.review_stars_sort = variant_matches.review_stars_sort AND
+                            excluded.significance_rank = variant_matches.significance_rank AND
+                            excluded.variation_id > variant_matches.variation_id
+                        )
+                    """,
+                    batch,
+                )
+
+        if conflict_summary_path is not None:
+            conflicts, _ = load_conflict_lookup(conflict_summary_path)
+            connection.executemany(
+                """
+                INSERT OR REPLACE INTO conflicts(variation_id, conflict_significance, submitter_count, summary_text)
+                VALUES (?, ?, ?, ?)
+                """,
+                [
+                    (
+                        variation_id,
+                        _serialize_json_list(conflict.conflict_significance),
+                        conflict.submitter_count,
+                        conflict.summary_text,
+                    )
+                    for variation_id, conflict in conflicts.items()
+                ],
+            )
+
+        if submission_summary_path is not None:
+            submissions, _ = load_submission_lookup(submission_summary_path)
+            connection.executemany(
+                """
+                INSERT OR REPLACE INTO submissions(
+                    variation_id, total_submissions, submitter_names, review_statuses, clinical_significances
+                )
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        variation_id,
+                        submission.total_submissions,
+                        _serialize_json_list(submission.submitter_names),
+                        _serialize_json_list(submission.review_statuses),
+                        _serialize_json_list(submission.clinical_significances),
+                    )
+                    for variation_id, submission in submissions.items()
+                ],
+            )
+
+        _write_cache_metadata(
+            connection,
+            variant_summary_path=variant_summary_path,
+            conflict_summary_path=conflict_summary_path,
+            submission_summary_path=submission_summary_path,
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    temporary_path.replace(cache_db_path)
+
+
+def _ensure_cache_db(
+    cache_db_path: Path,
+    *,
+    variant_summary_path: Path,
+    conflict_summary_path: Path | None,
+    submission_summary_path: Path | None,
+) -> None:
+    """Ensure a fresh processed SQLite cache exists for the provided raw ClinVar files."""
+    if cache_db_path.exists():
+        connection = _connect_cache_db(cache_db_path)
+        try:
+            _initialize_cache_schema(connection)
+            if _cache_is_current(
+                connection,
+                variant_summary_path=variant_summary_path,
+                conflict_summary_path=conflict_summary_path,
+                submission_summary_path=submission_summary_path,
+            ):
+                return
+        finally:
+            connection.close()
+
+    _rebuild_cache_db(
+        cache_db_path,
+        variant_summary_path=variant_summary_path,
+        conflict_summary_path=conflict_summary_path,
+        submission_summary_path=submission_summary_path,
+    )
+
+
+def _load_variant_summary_index_from_cache(
+    cache_db_path: Path,
+    *,
+    variant_summary_path: Path,
+    target_variant_keys: set[VariantKey],
+) -> ClinVarIndex:
+    """Query a processed SQLite cache for the requested exact ClinVar matches."""
+    exact_matches: dict[VariantKey, ClinVarMatch] = {}
+    connection = _connect_cache_db(cache_db_path)
+    try:
+        for key in target_variant_keys:
+            row = connection.execute(
+                """
+                SELECT
+                    assembly, chromosome, position, reference_allele, alternate_allele,
+                    variation_id, allele_id, accession, preferred_name, gene,
+                    condition_names, clinical_significance, review_status, review_stars,
+                    interpretation_origin, last_evaluated
+                FROM variant_matches
+                WHERE assembly = ? AND chromosome = ? AND position = ? AND reference_allele = ? AND alternate_allele = ?
+                """,
+                key,
+            ).fetchone()
+            if row is None:
+                continue
+            exact_matches[key] = _variant_match_from_cache_row(row)
+    finally:
+        connection.close()
+
+    return ClinVarIndex(
+        exact_matches=exact_matches,
+        provenance=[
+            _build_provenance("ClinVar variant summary", "file", variant_summary_path),
+            _build_provenance("ClinVar processed cache", "file", cache_db_path),
+        ],
+    )
 
 
 def load_variant_summary_index(
@@ -399,11 +845,78 @@ def load_submission_lookup(
     return submissions, _build_provenance("ClinVar submission summary", "file", submission_summary_path)
 
 
+def _iter_int_chunks(values: Iterable[int], chunk_size: int = 500) -> Iterator[list[int]]:
+    """Yield integer values in predictable query-sized chunks."""
+    chunk: list[int] = []
+    for value in values:
+        chunk.append(value)
+        if len(chunk) >= chunk_size:
+            yield chunk
+            chunk = []
+    if chunk:
+        yield chunk
+
+
+def _load_conflict_lookup_from_cache(
+    cache_db_path: Path,
+    *,
+    conflict_summary_path: Path,
+    target_variation_ids: set[int],
+) -> tuple[dict[int, ConflictSummary], DataProvenance]:
+    """Read conflict summaries for the requested VariationIDs from the processed cache."""
+    conflicts: dict[int, ConflictSummary] = {}
+    connection = _connect_cache_db(cache_db_path)
+    try:
+        for chunk in _iter_int_chunks(sorted(target_variation_ids)):
+            placeholders = ",".join("?" for _ in chunk)
+            rows = connection.execute(
+                f"""
+                SELECT variation_id, conflict_significance, submitter_count, summary_text
+                FROM conflicts
+                WHERE variation_id IN ({placeholders})
+                """,
+                chunk,
+            ).fetchall()
+            for row in rows:
+                conflicts[row["variation_id"]] = _conflict_from_cache_row(row)
+    finally:
+        connection.close()
+    return conflicts, _build_provenance("ClinVar conflicting interpretations", "file", conflict_summary_path)
+
+
+def _load_submission_lookup_from_cache(
+    cache_db_path: Path,
+    *,
+    submission_summary_path: Path,
+    target_variation_ids: set[int],
+) -> tuple[dict[int, SubmissionEvidence], DataProvenance]:
+    """Read submission aggregates for the requested VariationIDs from the processed cache."""
+    submissions: dict[int, SubmissionEvidence] = {}
+    connection = _connect_cache_db(cache_db_path)
+    try:
+        for chunk in _iter_int_chunks(sorted(target_variation_ids)):
+            placeholders = ",".join("?" for _ in chunk)
+            rows = connection.execute(
+                f"""
+                SELECT variation_id, total_submissions, submitter_names, review_statuses, clinical_significances
+                FROM submissions
+                WHERE variation_id IN ({placeholders})
+                """,
+                chunk,
+            ).fetchall()
+            for row in rows:
+                submissions[row["variation_id"]] = _submission_from_cache_row(row)
+    finally:
+        connection.close()
+    return submissions, _build_provenance("ClinVar submission summary", "file", submission_summary_path)
+
+
 def enrich_index_with_supporting_data(
     index: ClinVarIndex,
     conflict_summary_path: Path | None = None,
     submission_summary_path: Path | None = None,
     target_variation_ids: Iterable[int] | None = None,
+    cache_db_path: Path | None = None,
 ) -> ClinVarIndex:
     """Attach conflict and submission layers to an existing exact-match index."""
     allowed_variation_ids = set(target_variation_ids) if target_variation_ids is not None else {
@@ -413,14 +926,30 @@ def enrich_index_with_supporting_data(
         return index
 
     if conflict_summary_path is not None:
-        conflicts, provenance = load_conflict_lookup(conflict_summary_path, allowed_variation_ids)
+        if cache_db_path is not None:
+            conflicts, provenance = _load_conflict_lookup_from_cache(
+                cache_db_path,
+                conflict_summary_path=conflict_summary_path,
+                target_variation_ids=allowed_variation_ids,
+            )
+        else:
+            conflicts, provenance = load_conflict_lookup(conflict_summary_path, allowed_variation_ids)
         index.conflicts_by_variation_id.update(conflicts)
-        index.provenance.append(provenance)
+        if provenance not in index.provenance:
+            index.provenance.append(provenance)
 
     if submission_summary_path is not None:
-        submissions, provenance = load_submission_lookup(submission_summary_path, allowed_variation_ids)
+        if cache_db_path is not None:
+            submissions, provenance = _load_submission_lookup_from_cache(
+                cache_db_path,
+                submission_summary_path=submission_summary_path,
+                target_variation_ids=allowed_variation_ids,
+            )
+        else:
+            submissions, provenance = load_submission_lookup(submission_summary_path, allowed_variation_ids)
         index.submissions_by_variation_id.update(submissions)
-        index.provenance.append(provenance)
+        if provenance not in index.provenance:
+            index.provenance.append(provenance)
 
     return index
 
@@ -431,17 +960,35 @@ def load_clinvar_index(
     submission_summary_path: Path | None = None,
     target_variation_ids: Iterable[int] | None = None,
     target_variant_keys: set[VariantKey] | None = None,
+    cache_db_path: Path | None = None,
+    use_processed_cache: bool = True,
     chunk_size: int = 50_000,
 ) -> ClinVarIndex:
     """Build the exact-match index and optionally attach supporting evidence layers."""
-    index = load_variant_summary_index(
-        variant_summary_path,
-        chunk_size=chunk_size,
-        target_variant_keys=target_variant_keys,
-    )
+    resolved_cache_db_path = cache_db_path or _default_cache_db_path(variant_summary_path)
+    use_cache = use_processed_cache and target_variant_keys is not None
+    if use_cache:
+        _ensure_cache_db(
+            resolved_cache_db_path,
+            variant_summary_path=variant_summary_path,
+            conflict_summary_path=conflict_summary_path,
+            submission_summary_path=submission_summary_path,
+        )
+        index = _load_variant_summary_index_from_cache(
+            resolved_cache_db_path,
+            variant_summary_path=variant_summary_path,
+            target_variant_keys=target_variant_keys,
+        )
+    else:
+        index = load_variant_summary_index(
+            variant_summary_path,
+            chunk_size=chunk_size,
+            target_variant_keys=target_variant_keys,
+        )
     return enrich_index_with_supporting_data(
         index,
         conflict_summary_path=conflict_summary_path,
         submission_summary_path=submission_summary_path,
         target_variation_ids=target_variation_ids,
+        cache_db_path=resolved_cache_db_path if use_cache else None,
     )

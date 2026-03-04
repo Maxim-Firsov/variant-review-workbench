@@ -183,6 +183,8 @@ class CliTests(unittest.TestCase):
                 variant_summary=str(variant_summary),
                 conflict_summary=str(conflict),
                 submission_summary=str(submission),
+                clinvar_cache_db=None,
+                disable_clinvar_cache=False,
                 out_dir=str(out_dir),
                 enable_pharmgkb=False,
             )

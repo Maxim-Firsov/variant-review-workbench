@@ -250,7 +250,9 @@ def load_conflict_lookup(
             if not variation_text:
                 continue
 
-            variation_id = int(variation_text)
+            variation_id = _parse_int_field(variation_text)
+            if variation_id is None:
+                continue
             if target_variation_ids is not None and variation_id not in target_variation_ids:
                 continue
 
@@ -295,7 +297,9 @@ def load_submission_lookup(
         if not variation_text:
             continue
 
-        variation_id = int(variation_text)
+        variation_id = _parse_int_field(variation_text)
+        if variation_id is None:
+            continue
         if target_variation_ids is not None and variation_id not in target_variation_ids:
             continue
 

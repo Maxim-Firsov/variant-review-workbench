@@ -95,6 +95,44 @@ class ModelAndHelperTests(unittest.TestCase):
         self.assertEqual(set(conflicts.keys()), {2})
         self.assertTrue(conflicts[2].has_conflict)
 
+    def test_load_conflict_lookup_skips_non_numeric_variation_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "conflicts.txt"
+            with path.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle, delimiter="\t")
+                writer.writerow(
+                    [
+                        "#Gene_Symbol",
+                        "NCBI_Variation_ID",
+                        "ClinVar_Preferred",
+                        "Submitter1",
+                        "Submitter1_SCV",
+                        "Submitter1_ClinSig",
+                        "Submitter1_LastEval",
+                        "Submitter1_ReviewStatus",
+                        "Submitter1_Sub_Condition",
+                        "Submitter1_Description",
+                        "Submitter2",
+                        "Submitter2_SCV",
+                        "Submitter2_ClinSig",
+                        "Submitter2_LastEval",
+                        "Submitter2_ReviewStatus",
+                        "Submitter2_Sub_Condition",
+                        "Submitter2_Description",
+                        "Rank_diff",
+                        "Conflict_Reported",
+                        "Variant_type",
+                        "Submitter1_Method",
+                        "Submitter2_Method",
+                    ]
+                )
+                writer.writerow(["TP53", "abc", "bad", "A", "SCV1", "Pathogenic", "", "", "", "", "B", "SCV2", "Benign", "", "", "", "", "1", "yes", "SNV", "", ""])
+                writer.writerow(["TP53", "2", "good", "A", "SCV1", "Pathogenic", "", "", "", "", "B", "SCV2", "Benign", "", "", "", "", "1", "yes", "SNV", "", ""])
+
+            conflicts, _ = load_conflict_lookup(path)
+
+        self.assertEqual(set(conflicts.keys()), {2})
+
     def test_load_submission_lookup_skips_preamble_and_filters_targets(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "submission_summary.txt.gz"
@@ -108,6 +146,20 @@ class ModelAndHelperTests(unittest.TestCase):
 
         self.assertEqual(set(submissions.keys()), {1})
         self.assertEqual(submissions[1].submitter_names, ["Lab A"])
+
+    def test_load_submission_lookup_skips_non_numeric_variation_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "submission_summary.txt.gz"
+            with gzip.open(path, "wt", encoding="utf-8", newline="") as handle:
+                handle.write("##Overview\n")
+                handle.write("#VariationID\tClinicalSignificance\tDateLastEvaluated\tDescription\tSubmittedPhenotypeInfo\tReportedPhenotypeInfo\tReviewStatus\tCollectionMethod\tOriginCounts\tSubmitter\tSCV\tSubmittedGeneSymbol\tExplanationOfInterpretation\tSomaticClinicalImpact\tOncogenicity\tContributesToAggregateClassification\n")
+                handle.write("abc\tPathogenic\tJan 01, 2025\t-\t-\t-\treviewed by expert panel\tclinical testing\tgermline:1\tLab A\tSCV1\tTP53\t-\t-\t-\tyes\n")
+                handle.write("1\tBenign\tJan 01, 2025\t-\t-\t-\tcriteria provided, single submitter\tclinical testing\tgermline:1\tLab B\tSCV2\tTP53\t-\t-\t-\tyes\n")
+
+            submissions, _ = load_submission_lookup(path)
+
+        self.assertEqual(set(submissions.keys()), {1})
+        self.assertEqual(submissions[1].submitter_names, ["Lab B"])
 
     def test_enrich_index_with_supporting_data_preserves_base_match_and_copies_on_lookup(self) -> None:
         base_match = ClinVarMatch(

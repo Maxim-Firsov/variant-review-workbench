@@ -1,0 +1,75 @@
+{% extends "web/base.html.j2" %}
+
+{% block content %}
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <div class="chip-row">
+          <span class="chip">ClinVar-first</span>
+          <span class="chip">Research use only</span>
+          <span class="chip">Shared CLI backend</span>
+        </div>
+        <h1>Run the workbench without touching the command line.</h1>
+        <p>
+          This web layer is a thin interface over the existing pipeline. Upload a VCF, pick the reference
+          assembly, and choose whether you want a browser report or a direct export.
+        </p>
+        <p>
+          Phase 2 only provides the application shell. Submission currently routes to a placeholder results
+          page while the execution and export phases are implemented.
+        </p>
+      </div>
+      <div class="meta-card">
+        <strong>Current web skeleton</strong>
+        <p>Available now: homepage, docs page, results shell, health check, and submission routing.</p>
+        <p>Next: background execution, upload handling, report rendering, and real exports.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-top: 24px; padding: 28px;">
+    <h2>Run Setup</h2>
+    <form class="stack" method="post" action="{{ url_for('create_run') }}">
+      <div class="field">
+        <label for="vcf_path">VCF upload placeholder</label>
+        <input id="vcf_path" name="vcf_path" type="text" placeholder="VCF upload arrives in Phase 4">
+      </div>
+
+      <div class="field">
+        <label for="assembly">Assembly</label>
+        <select id="assembly" name="assembly">
+          <option value="GRCh38">GRCh38</option>
+          <option value="GRCh37">GRCh37</option>
+        </select>
+      </div>
+
+      <fieldset class="fieldset">
+        <legend>Options</legend>
+        <div class="checklist">
+          <label class="check" for="enable_pharmgkb">
+            <input id="enable_pharmgkb" name="enable_pharmgkb" type="checkbox" value="true">
+            <span>Enable PharmGKB enrichment</span>
+          </label>
+          <label class="check" for="mode_export_only">
+            <input id="mode_export_only" name="mode" type="checkbox" value="export_only">
+            <span>Skip browser report and go straight to export</span>
+          </label>
+        </div>
+      </fieldset>
+
+      <div class="field">
+        <label for="export_format">Preferred export format</label>
+        <select id="export_format" name="export_format">
+          <option value="json">JSON</option>
+          <option value="html">HTML</option>
+          <option value="md">Markdown</option>
+        </select>
+      </div>
+
+      <div class="actions">
+        <button type="submit">Open Results Shell</button>
+        <a class="button secondary" href="{{ url_for('docs') }}">Read project details</a>
+      </div>
+    </form>
+  </section>
+{% endblock %}

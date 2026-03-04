@@ -1,0 +1,27 @@
+{% extends "web/base.html.j2" %}
+
+{% block content %}
+  <section class="hero">
+    <h1>Results Shell</h1>
+    <p>
+      This placeholder page establishes the web route shape for run results. It intentionally does not execute
+      the pipeline yet.
+    </p>
+    <div class="meta-card">
+      <strong>Run identifier</strong>
+      <div class="mono">{{ run_id }}</div>
+      {% if export_format %}
+        <p>Requested export preference: <span class="mono">{{ export_format }}</span></p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="panel" style="margin-top: 24px; padding: 28px;">
+    <h2>Planned result experience</h2>
+    <ul>
+      <li>Rendered analyst-facing report from the shared reporting pipeline</li>
+      <li>Visible provenance and research-use disclaimer</li>
+      <li>Export control for JSON, HTML, and Markdown artifacts</li>
+    </ul>
+  </section>
+{% endblock %}

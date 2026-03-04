@@ -1,0 +1,33 @@
+{% extends "web/base.html.j2" %}
+
+{% block content %}
+  <section class="hero">
+    <h1>Variant Review Workbench</h1>
+    <p>
+      This web interface preserves the existing CLI-first architecture. The core pipeline remains responsible
+      for ClinVar matching, conflict surfacing, optional PharmGKB enrichment, ranking, reporting, and artifact export.
+    </p>
+  </section>
+
+  <section class="panel" style="margin-top: 24px; padding: 28px;">
+    <div class="panel-grid">
+      <div>
+        <h2>What This App Is</h2>
+        <ul>
+          <li>A thin analyst-facing layer over the current pipeline</li>
+          <li>A research triage interface for small-variant review</li>
+          <li>A non-clinical demonstration of the same export and reporting workflow</li>
+        </ul>
+      </div>
+      <div>
+        <h2>What Comes Next</h2>
+        <ul>
+          <li>Real VCF upload handling</li>
+          <li>Job execution and status tracking</li>
+          <li>Report rendering from shared pipeline outputs</li>
+          <li>JSON, HTML, and Markdown exports</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+{% endblock %}

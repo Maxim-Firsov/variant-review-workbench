@@ -609,7 +609,7 @@ class WebAppTests(unittest.TestCase):
         )
         client = threaded_app.test_client()
 
-        with patch("src.web.app.run_pipeline_with_result", side_effect=RuntimeError("synthetic pipeline failure")):
+        with patch("src.web.app._run_pipeline_job", side_effect=RuntimeError("synthetic pipeline failure")):
             create_response = client.post(
                 "/runs",
                 data={

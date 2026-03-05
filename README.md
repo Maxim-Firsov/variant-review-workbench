@@ -219,7 +219,7 @@ Web flow:
 3. Optionally enable PharmGKB enrichment.
 4. Either open the browser report or go straight to `html`, `json`, or `md` export.
 
-For deployment-specific details, see [DEPLOYMENT.md](C:/Code/GitPortfolio/variant-review-workbench/DEPLOYMENT.md).
+For deployment-specific details, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 Hosted process summary:
 
@@ -515,7 +515,7 @@ Current integration uses stable public queries for:
 
 Human-readable source links are also maintained in:
 
-- [external_sources.md](C:/Code/GitPortfolio/variant-review-workbench/data/references/external_sources.md)
+- [external_sources.md](data/references/external_sources.md)
 
 ## Licensing And Attribution
 
@@ -570,7 +570,7 @@ If you are reviewing this repository quickly:
 
 1. Open the homepage or the generated demo report first.
 2. Check `summary.json` and `prioritized_variants.json` to confirm the machine-readable contract.
-3. Read [DEPLOYMENT.md](C:/Code/GitPortfolio/variant-review-workbench/DEPLOYMENT.md) if you want the hosted shape rather than the local CLI shape.
+3. Read [DEPLOYMENT.md](DEPLOYMENT.md) if you want the hosted shape rather than the local CLI shape.
 
 ## Limitations
 

@@ -139,6 +139,11 @@ def create_app(test_config: dict | None = None) -> Flask:
     )
     app.extensions["runtime_settings"] = runtime_settings
 
+    configured_job_execution_mode = str(app.config["JOB_EXECUTION_MODE"])
+    # Run web submissions synchronously to avoid cross-worker in-memory job state issues.
+    app.config["JOB_EXECUTION_MODE"] = "inline"
+    app.config["JOB_EXECUTION_MODE_CONFIGURED"] = configured_job_execution_mode
+
     upload_root = runtime_settings.upload_root
     run_output_root = runtime_settings.run_output_root
     ensure_storage_roots(upload_root, run_output_root)
@@ -312,7 +317,8 @@ def create_app(test_config: dict | None = None) -> Flask:
     @app.get("/healthz")
     def healthz() -> tuple[dict[str, object], int]:
         payload = runtime_settings.health_snapshot()
-        payload["job_execution_mode"] = runtime_settings.job_execution_mode
+        payload["job_execution_mode"] = str(app.config["JOB_EXECUTION_MODE"])
+        payload["job_execution_mode_configured"] = str(app.config["JOB_EXECUTION_MODE_CONFIGURED"])
         payload["max_upload_mb"] = runtime_settings.max_upload_mb
         status_code = 200 if payload["status"] == "ok" else 503
         return payload, status_code

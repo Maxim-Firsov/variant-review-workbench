@@ -1,0 +1,33 @@
+Variant Review Workbench Non-Commercial Attribution License v1.0
+
+Copyright (c) 2026 Maxim Firsov
+
+Permission is granted to use, run, and modify this software for personal,
+educational, research, and internal non-commercial purposes, subject to the
+conditions below.
+
+1. Attribution required for redistribution
+If copies of this software or substantial portions of it are distributed in
+source or binary form, clear credit to the original author must be included.
+Attribution must include:
+- author name: Maxim Firsov
+- project name: Variant Review Workbench
+- repository URL when reasonably possible
+
+2. No commercial use
+Commercial use is not permitted. Commercial use includes, without limitation:
+- selling this software or derived works
+- providing paid services built on this software
+- using this software in any revenue-generating product or workflow
+
+3. Distribution without credit is not permitted
+Distribution that omits or obscures required attribution is prohibited.
+
+4. No warranty
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHOR OR COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM,
+OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

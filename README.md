@@ -521,6 +521,10 @@ Human-readable source links are also maintained in:
 
 This repository contains code written for the workbench itself. Upstream datasets and APIs remain governed by their respective providers.
 
+- Repository code license: see [LICENSE](LICENSE)
+  - free use for personal, educational, research, and internal non-commercial purposes
+  - no commercial use
+  - redistribution requires clear credit to the original author and project
 - ClinVar data usage and redistribution expectations should be reviewed through NCBI documentation.
 - PharmGKB API usage should follow PharmGKB terms and public API guidance.
 

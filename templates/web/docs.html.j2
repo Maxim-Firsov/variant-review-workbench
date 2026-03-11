@@ -76,25 +76,4 @@
       </div>
     </div>
   </section>
-
-  <section class="panel" style="margin-top: 24px;">
-    <div class="panel-grid">
-      <div>
-        <h2>Repository notes</h2>
-        <ul>
-          <li>The repository includes both CLI and web quick-start paths.</li>
-          <li>The processed ClinVar cache is documented as a reusable shared dependency, not a per-query warm-up.</li>
-          <li>`DEPLOYMENT.md` captures the Render disk layout, environment variables, and smoke-test workflow.</li>
-        </ul>
-      </div>
-      <div>
-        <h2>Operational notes</h2>
-        <ul>
-          <li>The hosted interface follows the same process described in the repository docs.</li>
-          <li>Users are less likely to confuse run retention with cache build timing.</li>
-          <li>The web app keeps runtime constraints and data-handling limits explicit.</li>
-        </ul>
-      </div>
-    </div>
-  </section>
 {% endblock %}

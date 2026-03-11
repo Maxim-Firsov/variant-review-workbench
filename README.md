@@ -258,8 +258,8 @@ Hosted recommendation:
 
 - the web app is a convenience interface over the same research pipeline, not a clinical product
 - upload acceptance is limited to `.vcf` and `.vcf.gz` files and the request size cap defaults to `25` MB
-- the hosted demo stores submitted files in per-run workspaces and removes stale workspaces opportunistically after the configured retention window
-- the hosted demo is not a PHI-grade privacy boundary, so protected health information should not be uploaded
+- the hosted web interface stores submitted files in per-run workspaces and removes stale workspaces opportunistically after the configured retention window
+- the hosted web interface is not a PHI-grade privacy boundary, so protected health information should not be uploaded
 - `/healthz` is intended to return healthy only after the configured ClinVar source files and cache parent directories exist on disk
 
 ## Example Usage

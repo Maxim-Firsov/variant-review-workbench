@@ -123,6 +123,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     app = Flask(__name__, template_folder=str(template_dir), static_folder=str(static_dir))
     runtime_settings = WebRuntimeSettings.from_env(project_root)
     app.config.from_mapping(runtime_settings.to_flask_config())
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
     if test_config:
         app.config.update(test_config)
 
@@ -165,6 +166,14 @@ def create_app(test_config: dict | None = None) -> Flask:
                 "run_retention_hours": int(app.config["RUN_RETENTION_HOURS"]),
             }
         }
+
+    @app.after_request
+    def apply_no_cache_headers(response: Response) -> Response:
+        """Force browsers and intermediaries to revalidate site responses."""
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
 
     @app.errorhandler(RequestEntityTooLarge)
     def handle_request_too_large(_: RequestEntityTooLarge) -> tuple[str, int]:

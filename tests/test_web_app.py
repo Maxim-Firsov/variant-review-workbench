@@ -198,8 +198,16 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Variant Review Workbench", response.data)
         self.assertIn(b"Browser workflow", response.data)
-        self.assertIn(b"Hosted demo guardrails", response.data)
+        self.assertIn(b"Hosted guardrails", response.data)
         self.assertIn(b"processed ClinVar cache should be built offline", response.data)
+
+    def test_site_pages_send_no_cache_headers(self) -> None:
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("Cache-Control"), "no-store, no-cache, must-revalidate, max-age=0")
+        self.assertEqual(response.headers.get("Pragma"), "no-cache")
+        self.assertEqual(response.headers.get("Expires"), "0")
 
     def test_health_check_returns_ok(self) -> None:
         response = self.client.get("/healthz")

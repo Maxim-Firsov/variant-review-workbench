@@ -10,8 +10,10 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .web_runtime/
+outputs/tmp_*/
 outputs/runtime_check_no_pgx/
 outputs/runtime_check_with_pgx/
+data/SRR8073662_zc.vcf
 data/screenshots/0_webpage.png
 
 WORKPLAN.local.md

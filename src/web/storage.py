@@ -98,16 +98,19 @@ def save_uploaded_vcf(*, upload: FileStorage | None, workspace: RunWorkspace) ->
     """Persist an uploaded VCF into the run-specific upload directory."""
     safe_name = _validate_upload_filename(upload.filename if upload is not None else "")
     assert upload is not None
-    _looks_like_vcf(upload, safe_name)
-    destination = workspace.upload_dir / safe_name
-    upload.save(destination)
-    return RunWorkspace(
-        job_id=workspace.job_id,
-        run_root=workspace.run_root,
-        upload_dir=workspace.upload_dir,
-        output_dir=workspace.output_dir,
-        uploaded_vcf_path=destination,
-    )
+    try:
+        _looks_like_vcf(upload, safe_name)
+        destination = workspace.upload_dir / safe_name
+        upload.save(destination)
+        return RunWorkspace(
+            job_id=workspace.job_id,
+            run_root=workspace.run_root,
+            upload_dir=workspace.upload_dir,
+            output_dir=workspace.output_dir,
+            uploaded_vcf_path=destination,
+        )
+    finally:
+        upload.close()
 
 
 def cleanup_expired_run_directories(*, upload_root: Path, run_output_root: Path, retention_hours: int) -> None:

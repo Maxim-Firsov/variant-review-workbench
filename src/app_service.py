@@ -17,7 +17,7 @@ from .models import (
 )
 from .pgx_enrichment import PharmGKBClient, enrich_annotated_variants
 from .ranker import rank_variants
-from .report_builder import build_report_context, build_variant_export_records, write_html_report
+from .report_builder import build_report_context, build_variant_export_records, write_html_report, write_report_bundle
 from .vcf_parser import parse_vcf
 
 
@@ -159,6 +159,7 @@ def run_pipeline_with_result(args: argparse.Namespace) -> PipelineRunResult:
         "run_metadata_json": write_json(output_dir / "run_metadata.json", run_metadata.model_dump(mode="json")),
         "report_html": write_html_report(output_dir / "report.html", ranked_variants, run_metadata=run_metadata),
     }
+    outputs.update(write_report_bundle(output_dir, report_context))
     return PipelineRunResult(outputs=outputs, run_metadata=run_metadata, report_context=report_context)
 
 

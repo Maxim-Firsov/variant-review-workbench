@@ -201,6 +201,8 @@ class CliTests(unittest.TestCase):
             metadata = json.loads((out_dir / "run_metadata.json").read_text(encoding="utf-8"))
             report_html = (out_dir / "report.html").read_text(encoding="utf-8")
             variants_json = json.loads((out_dir / "prioritized_variants.json").read_text(encoding="utf-8"))
+            report_markdown = (out_dir / "report.md").read_text(encoding="utf-8")
+            report_export = json.loads((out_dir / "report_export.json").read_text(encoding="utf-8"))
             with (out_dir / "annotated_variants.csv").open("r", encoding="utf-8", newline="") as handle:
                 csv_rows = list(csv.DictReader(handle))
 
@@ -210,6 +212,8 @@ class CliTests(unittest.TestCase):
         self.assertEqual(summary["conflict_flagged_count"], 1)
         self.assertEqual(metadata["statistics"]["clinvar_matched_count"], 1)
         self.assertIn("Variant Review Report", report_html)
+        self.assertIn("# Variant Review Report", report_markdown)
+        self.assertEqual(report_export["report_title"], "Variant Review Report")
         self.assertEqual(variants_json["schema_version"], "1.0")
         self.assertEqual(variants_json["artifact_type"], "prioritized_variants")
         self.assertEqual(variants_json["records"][0]["input_gene"], "TP53")

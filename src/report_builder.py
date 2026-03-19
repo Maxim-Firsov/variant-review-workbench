@@ -343,6 +343,15 @@ def write_report_export_json(output_path: Path, report_context: dict[str, object
     return output_path
 
 
+def write_report_bundle(output_dir: Path, report_context: dict[str, object]) -> dict[str, Path]:
+    """Write the shared non-HTML report exports to disk."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return {
+        "report_markdown": write_markdown_report(output_dir / "report.md", report_context),
+        "report_export_json": write_report_export_json(output_dir / "report_export.json", report_context),
+    }
+
+
 def render_html_report(
     ranked_variants: list[RankedVariant],
     run_metadata: RunMetadata | None = None,

@@ -20,6 +20,7 @@ from src.report_builder import (
     build_report_context,
     build_variant_export_records,
     render_html_report,
+    write_report_bundle,
     write_html_report,
 )
 from src.report_builder import build_report_export_payload, render_markdown_report, write_markdown_report, write_report_export_json
@@ -216,6 +217,24 @@ class ReportBuilderTests(unittest.TestCase):
             self.assertTrue(json_path.exists())
             self.assertIn("Variant Review Report", markdown_path.read_text(encoding="utf-8"))
             self.assertIn('"report_title": "Variant Review Report"', json_path.read_text(encoding="utf-8"))
+
+    def test_write_report_bundle_emits_markdown_and_json_exports(self) -> None:
+        ranked_variants = [
+            build_ranked_variant("record-1", "TP53", 43045702, ReviewPriorityTier.HIGH_REVIEW_PRIORITY, 17.5),
+        ]
+        metadata = RunMetadata(
+            input_path="data/demo.vcf",
+            output_dir="outputs/demo",
+            assembly=GenomeAssembly.GRCH38,
+        )
+        context = build_report_context(ranked_variants, metadata)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            outputs = write_report_bundle(Path(tmpdir), context)
+
+            self.assertEqual(set(outputs), {"report_markdown", "report_export_json"})
+            self.assertTrue(outputs["report_markdown"].exists())
+            self.assertTrue(outputs["report_export_json"].exists())
 
     def test_build_report_context_limits_variant_rows_for_large_runs(self) -> None:
         ranked_variants = [

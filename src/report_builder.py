@@ -264,6 +264,31 @@ def render_markdown_report_from_context(report_context: dict[str, object]) -> st
         f"- PharmGKB enriched: {summary['pharmgkb_count']}",
         "",
     ]
+    tier_counts = summary.get("tier_counts", {})
+    if isinstance(tier_counts, dict):
+        lines.extend(
+            [
+                "## Priority Tiers",
+                "",
+                f"- High review priority: {tier_counts.get(ReviewPriorityTier.HIGH_REVIEW_PRIORITY.value, 0)}",
+                f"- Review: {tier_counts.get(ReviewPriorityTier.REVIEW.value, 0)}",
+                f"- Context only: {tier_counts.get(ReviewPriorityTier.CONTEXT_ONLY.value, 0)}",
+                "",
+            ]
+        )
+    truncated_variant_count = summary.get("truncated_variant_count", 0)
+    if isinstance(truncated_variant_count, int) and truncated_variant_count > 0:
+        lines.extend(
+            [
+                "## Display Notes",
+                "",
+                (
+                    f"- The full run contained {summary['variant_count']} ranked variants, "
+                    f"and this report shows the first {summary['displayed_variant_count']}."
+                ),
+                "",
+            ]
+        )
     warning = payload.get("no_clinvar_match_warning")
     if warning:
         assert isinstance(warning, dict)

@@ -204,6 +204,7 @@ class ReportBuilderTests(unittest.TestCase):
         self.assertEqual(payload["report_title"], "Variant Review Report")
         self.assertEqual(payload["summary"]["clinvar_matched_count"], 1)
         self.assertIn("# Variant Review Report", markdown)
+        self.assertIn("## Priority Tiers", markdown)
         self.assertIn("## Top Findings", markdown)
         self.assertIn("TP53", markdown)
 
@@ -259,6 +260,11 @@ class ReportBuilderTests(unittest.TestCase):
         self.assertEqual(context["summary"]["displayed_variant_count"], MAX_REPORT_TABLE_ROWS)
         self.assertEqual(context["summary"]["truncated_variant_count"], 25)
         self.assertEqual(len(context["variant_rows"]), MAX_REPORT_TABLE_ROWS)
+
+        markdown = render_markdown_report(ranked_variants, metadata)
+
+        self.assertIn("## Display Notes", markdown)
+        self.assertIn("shows the first 500", markdown)
 
 
 if __name__ == "__main__":

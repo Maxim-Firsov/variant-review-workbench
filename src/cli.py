@@ -19,6 +19,17 @@ def _parse_assembly(value: str) -> GenomeAssembly:
     raise argparse.ArgumentTypeError("assembly must be either 'GRCh37' or 'GRCh38'")
 
 
+def _parse_positive_int(value: str) -> int:
+    """Parse an integer CLI value that must be positive."""
+    try:
+        parsed = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("value must be an integer") from error
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("value must be >= 1")
+    return parsed
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Create the top-level command-line parser."""
     parser = argparse.ArgumentParser(
@@ -48,6 +59,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Disable the persistent processed ClinVar cache and read raw files directly.",
     )
     parser.add_argument("--out-dir", required=True, help="Directory where run outputs will be written.")
+    parser.add_argument(
+        "--max-input-variants",
+        type=_parse_positive_int,
+        default=None,
+        help="Optional cap on parsed input variants for faster local smoke runs.",
+    )
     parser.add_argument(
         "--enable-pharmgkb",
         action="store_true",

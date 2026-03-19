@@ -34,6 +34,26 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(args.assembly, GenomeAssembly.GRCH38)
 
+    def test_build_parser_accepts_max_input_variants(self) -> None:
+        parser = build_parser()
+
+        args = parser.parse_args(
+            [
+                "--input",
+                "input.vcf",
+                "--assembly",
+                "GRCh38",
+                "--variant-summary",
+                "variant_summary.txt.gz",
+                "--out-dir",
+                "outputs",
+                "--max-input-variants",
+                "25",
+            ]
+        )
+
+        self.assertEqual(args.max_input_variants, 25)
+
     def test_build_parser_rejects_unsupported_assembly(self) -> None:
         parser = build_parser()
 
@@ -48,6 +68,25 @@ class CliTests(unittest.TestCase):
                     "variant_summary.txt.gz",
                     "--out-dir",
                     "outputs",
+                ]
+            )
+
+    def test_build_parser_rejects_non_positive_max_input_variants(self) -> None:
+        parser = build_parser()
+
+        with self.assertRaises(SystemExit):
+            parser.parse_args(
+                [
+                    "--input",
+                    "input.vcf",
+                    "--assembly",
+                    "GRCh38",
+                    "--variant-summary",
+                    "variant_summary.txt.gz",
+                    "--out-dir",
+                    "outputs",
+                    "--max-input-variants",
+                    "0",
                 ]
             )
 
@@ -189,6 +228,7 @@ class CliTests(unittest.TestCase):
                 clinvar_cache_db=None,
                 disable_clinvar_cache=False,
                 out_dir=str(out_dir),
+                max_input_variants=None,
                 enable_pharmgkb=False,
             )
 
@@ -234,6 +274,7 @@ class CliTests(unittest.TestCase):
             disable_clinvar_cache=False,
             out_dir="outputs",
             enable_pharmgkb=False,
+            max_input_variants=None,
         )
 
         with self.assertRaisesRegex(ValueError, "Input VCF was not found: missing.vcf"):
@@ -308,6 +349,8 @@ class CliTests(unittest.TestCase):
                 "--out-dir",
                 str(out_dir),
                 "--enable-pharmgkb",
+                "--max-input-variants",
+                "1",
             ]
 
             with patch("src.pgx_enrichment.PharmGKBClient._get", return_value=([], False)):
@@ -334,9 +377,9 @@ class CliTests(unittest.TestCase):
         run_metadata.statistics.pharmgkb_enriched_count = 0
 
         with patch("src.cli.run_pipeline_with_details", return_value=(outputs, run_metadata)) as mock_run:
-            with patch("sys.argv", ["prog", "--input", "input.vcf", "--assembly", "GRCh38", "--variant-summary", "variant_summary.txt.gz", "--out-dir", "outputs"]):
-                with patch("sys.stdout", new_callable=io.StringIO) as stdout:
-                    main()
+                with patch("sys.argv", ["prog", "--input", "input.vcf", "--assembly", "GRCh38", "--variant-summary", "variant_summary.txt.gz", "--out-dir", "outputs"]):
+                    with patch("sys.stdout", new_callable=io.StringIO) as stdout:
+                        main()
 
         self.assertTrue(mock_run.called)
         self.assertIn("Run completed:", stdout.getvalue())

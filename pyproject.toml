@@ -13,6 +13,10 @@ dependencies = [
   "requests>=2.32,<3.0",
 ]
 
+[project.scripts]
+variant-review-workbench = "src.cli:main"
+variant-review-workbench-cache-bootstrap = "src.cache_bootstrap:main"
+
 [project.optional-dependencies]
 dev = [
   "pytest>=8.2,<9.0",
@@ -22,3 +26,6 @@ dev = [
 [build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["src*"]

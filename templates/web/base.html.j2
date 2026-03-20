@@ -31,6 +31,11 @@
           const exportOnly = form.querySelector("[data-export-only]");
           const exportFormatField = form.querySelector("[data-export-format-field]");
           const submitButton = form.querySelector("[data-submit-button]");
+          const useDemoSample = form.querySelector("[data-use-demo-sample]");
+          const demoSampleField = form.querySelector("[data-demo-sample-field]");
+          const assemblySelect = form.querySelector("[data-assembly-select]");
+          const vcfFileInput = form.querySelector("#vcf_file");
+          const demoAssembly = "GRCh38";
 
           const syncExportVisibility = () => {
             const exportEnabled = Boolean(exportOnly && exportOnly.checked);
@@ -42,8 +47,33 @@
             }
           };
 
+          const syncDemoSampleState = () => {
+            const demoEnabled = Boolean(useDemoSample && useDemoSample.checked);
+            if (demoSampleField) {
+              demoSampleField.classList.toggle("hidden", !demoEnabled);
+            }
+            if (vcfFileInput) {
+              vcfFileInput.required = !demoEnabled;
+              vcfFileInput.disabled = demoEnabled;
+              if (demoEnabled) {
+                vcfFileInput.value = "";
+              }
+            }
+            if (assemblySelect) {
+              if (demoEnabled) {
+                assemblySelect.value = demoAssembly;
+                assemblySelect.dataset.previousValue = demoAssembly;
+                assemblySelect.disabled = true;
+              } else {
+                assemblySelect.disabled = false;
+              }
+            }
+          };
+
           syncExportVisibility();
+          syncDemoSampleState();
           exportOnly?.addEventListener("change", syncExportVisibility);
+          useDemoSample?.addEventListener("change", syncDemoSampleState);
           form.addEventListener("submit", () => {
             if (submitButton) {
               submitButton.dataset.loading = "true";

@@ -78,15 +78,34 @@
       <div class="grid-two">
         <div class="field">
           <label for="vcf_file">VCF upload</label>
-          <input id="vcf_file" name="vcf_file" type="file" accept=".vcf,.vcf.gz,.gz" required>
-          <small>Select a local `.vcf` or `.vcf.gz` file.</small>
+          <div class="actions-inline">
+            <input id="vcf_file" name="vcf_file" type="file" accept=".vcf,.vcf.gz,.gz" {% if not form_use_demo_sample %}required{% endif %}>
+            <label class="check" for="use_demo_sample" style="margin: 0;">
+              <input id="use_demo_sample" name="use_demo_sample" type="checkbox" value="true" data-use-demo-sample {% if form_use_demo_sample %}checked{% endif %}>
+              <span>Use demo sample</span>
+            </label>
+          </div>
+          <div class="field hidden" data-demo-sample-field>
+            <label for="demo_sample_id">Demo sample</label>
+            <select id="demo_sample_id" name="demo_sample_id">
+              <option value="{{ web_scope.demo_sample.id }}" {% if form_demo_sample_id == web_scope.demo_sample.id %}selected{% endif %}>
+                {{ web_scope.demo_sample.label }}
+              </option>
+            </select>
+            <small>
+              Genes: {{ web_scope.demo_sample.genes | join(", ") }}.
+              Loci: {{ web_scope.demo_sample.loci | join(", ") }}.
+              Source: {{ web_scope.demo_sample.source }}.
+            </small>
+          </div>
+          <small>Select a local `.vcf` or `.vcf.gz` file, or use the hosted demo sample.</small>
         </div>
 
         <div class="field">
           <label for="assembly">Assembly</label>
-          <select id="assembly" name="assembly">
-            <option value="GRCh38">GRCh38</option>
-            <option value="GRCh37">GRCh37</option>
+          <select id="assembly" name="assembly" data-assembly-select>
+            <option value="GRCh38" {% if form_assembly == "GRCh38" %}selected{% endif %}>GRCh38</option>
+            <option value="GRCh37" {% if form_assembly == "GRCh37" %}selected{% endif %}>GRCh37</option>
           </select>
           <small>Match the assembly to the VCF coordinates.</small>
         </div>

@@ -203,6 +203,9 @@ class WebAppTests(unittest.TestCase):
         self.assertIn(b'min="5"', response.data)
         self.assertIn(b'max="3000"', response.data)
         self.assertIn(b'value="3000"', response.data)
+        self.assertIn(b"Use demo sample", response.data)
+        self.assertIn(b"Repository demo sample", response.data)
+        self.assertIn(b"DPYD, APC, BRCA1, TP53", response.data)
 
     def test_docs_page_renders_project_context(self) -> None:
         response = self.client.get("/docs")
@@ -236,6 +239,8 @@ class WebAppTests(unittest.TestCase):
         self.assertTrue(payload["paths"]["upload_root"].endswith("uploads"))
         self.assertTrue(payload["paths"]["run_output_root"].endswith("runs"))
         self.assertTrue(payload["checks"]["clinvar_variant_summary_exists"])
+        self.assertTrue(payload["checks"]["web_demo_vcf_exists"])
+        self.assertEqual(payload["demo_sample"]["assembly"], "GRCh38")
 
     def test_health_check_reflects_threaded_when_threaded_configured(self) -> None:
         threaded_app = create_app(
@@ -322,6 +327,45 @@ class WebAppTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertIn("/runs/run-", response.headers["Location"])
+
+    def test_create_run_accepts_hosted_demo_sample(self) -> None:
+        response = self.client.post(
+            "/runs",
+            data={
+                "assembly": "GRCh37",
+                "export_format": "json",
+                "max_input_variants": "25",
+                "use_demo_sample": "true",
+                "demo_sample_id": "repository_demo",
+            },
+            content_type="multipart/form-data",
+        )
+
+        self.assertEqual(response.status_code, 302)
+        run_id = response.headers["Location"].rstrip("/").split("/")[-1]
+        status_payload = self.client.get(f"/runs/{run_id}/status").get_json()
+        assert status_payload is not None
+        self.assertEqual(status_payload["metadata"]["assembly"], "GRCh38")
+        self.assertTrue(status_payload["metadata"]["use_demo_sample"])
+        self.assertEqual(status_payload["metadata"]["demo_sample_id"], "repository_demo")
+        self.assertTrue(status_payload["metadata"]["uploaded_vcf_path"].endswith("demo.vcf"))
+        self.assertTrue(status_payload["result"]["uploaded_vcf_path"].endswith("demo.vcf"))
+
+    def test_create_run_rejects_unknown_demo_sample(self) -> None:
+        response = self.client.post(
+            "/runs",
+            data={
+                "assembly": "GRCh38",
+                "export_format": "json",
+                "max_input_variants": "25",
+                "use_demo_sample": "true",
+                "demo_sample_id": "missing_demo",
+            },
+            content_type="multipart/form-data",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(b"Requested demo sample is not available.", response.data)
 
     def test_export_only_submission_redirects_with_export_preference(self) -> None:
         response = self.client.post(

@@ -113,6 +113,24 @@ def save_uploaded_vcf(*, upload: FileStorage | None, workspace: RunWorkspace) ->
         upload.close()
 
 
+def save_demo_vcf(*, demo_vcf_path: Path, workspace: RunWorkspace) -> RunWorkspace:
+    """Copy a configured demo VCF into the run-specific upload directory."""
+    if not demo_vcf_path.exists():
+        raise UploadValidationError("Configured demo sample is not available.")
+    if not demo_vcf_path.is_file():
+        raise UploadValidationError("Configured demo sample path is not a file.")
+
+    destination = workspace.upload_dir / secure_filename(demo_vcf_path.name)
+    shutil.copy2(demo_vcf_path, destination)
+    return RunWorkspace(
+        job_id=workspace.job_id,
+        run_root=workspace.run_root,
+        upload_dir=workspace.upload_dir,
+        output_dir=workspace.output_dir,
+        uploaded_vcf_path=destination,
+    )
+
+
 def cleanup_expired_run_directories(*, upload_root: Path, run_output_root: Path, retention_hours: int) -> None:
     """Remove old run directories beyond the configured retention window."""
     expiry_cutoff = datetime.now(UTC) - timedelta(hours=retention_hours)

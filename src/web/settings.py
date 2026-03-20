@@ -39,6 +39,7 @@ class WebRuntimeSettings:
     clinvar_conflict_summary: Path | None
     clinvar_submission_summary: Path | None
     clinvar_cache_db: Path | None
+    demo_vcf_path: Path
     disable_clinvar_cache: bool
 
     @classmethod
@@ -72,6 +73,7 @@ class WebRuntimeSettings:
             clinvar_cache_db=Path(
                 os.getenv("VRW_CLINVAR_CACHE_DB", str(clinvar_processed_dir / "clinvar_lookup_cache.sqlite3"))
             ),
+            demo_vcf_path=Path(os.getenv("VRW_WEB_DEMO_VCF", str(project_root / "data" / "demo.vcf"))),
             disable_clinvar_cache=_env_flag("VRW_DISABLE_CLINVAR_CACHE", False),
         )
 
@@ -90,6 +92,7 @@ class WebRuntimeSettings:
             "CLINVAR_CONFLICT_SUMMARY": str(self.clinvar_conflict_summary) if self.clinvar_conflict_summary else None,
             "CLINVAR_SUBMISSION_SUMMARY": str(self.clinvar_submission_summary) if self.clinvar_submission_summary else None,
             "CLINVAR_CACHE_DB": str(self.clinvar_cache_db) if self.clinvar_cache_db else None,
+            "WEB_DEMO_VCF": str(self.demo_vcf_path),
             "DISABLE_CLINVAR_CACHE": self.disable_clinvar_cache,
         }
 
@@ -110,6 +113,7 @@ class WebRuntimeSettings:
                 self.clinvar_submission_summary.exists() if self.clinvar_submission_summary is not None else True
             ),
             "clinvar_cache_parent_exists": cache_parent_exists,
+            "web_demo_vcf_exists": self.demo_vcf_path.exists(),
         }
         status = "ok" if all(checks.values()) else "degraded"
         return {
@@ -122,5 +126,6 @@ class WebRuntimeSettings:
                 "clinvar_conflict_summary": str(self.clinvar_conflict_summary) if self.clinvar_conflict_summary else None,
                 "clinvar_submission_summary": str(self.clinvar_submission_summary) if self.clinvar_submission_summary else None,
                 "clinvar_cache_db": str(self.clinvar_cache_db) if self.clinvar_cache_db else None,
+                "web_demo_vcf": str(self.demo_vcf_path),
             },
         }

@@ -19,8 +19,19 @@ from .storage import (
     cleanup_expired_run_directories,
     create_run_workspace,
     ensure_storage_roots,
+    save_demo_vcf,
     save_uploaded_vcf,
 )
+
+
+DEMO_SAMPLE = {
+    "id": "repository_demo",
+    "label": "Repository demo sample",
+    "assembly": "GRCh38",
+    "genes": ["DPYD", "APC", "BRCA1", "TP53"],
+    "loci": ["1:97450058", "5:112827199", "17:43106487", "17:7674208"],
+    "source": "Repository file data/demo.vcf",
+}
 
 
 def _parse_assembly(value: str) -> GenomeAssembly:
@@ -160,6 +171,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         clinvar_conflict_summary=Path(str(app.config["CLINVAR_CONFLICT_SUMMARY"])) if app.config["CLINVAR_CONFLICT_SUMMARY"] else None,
         clinvar_submission_summary=Path(str(app.config["CLINVAR_SUBMISSION_SUMMARY"])) if app.config["CLINVAR_SUBMISSION_SUMMARY"] else None,
         clinvar_cache_db=Path(str(app.config["CLINVAR_CACHE_DB"])) if app.config["CLINVAR_CACHE_DB"] else None,
+        demo_vcf_path=Path(str(app.config["WEB_DEMO_VCF"])),
         disable_clinvar_cache=bool(app.config["DISABLE_CLINVAR_CACHE"]),
     )
     app.extensions["runtime_settings"] = runtime_settings
@@ -184,6 +196,10 @@ def create_app(test_config: dict | None = None) -> Flask:
                 "max_upload_mb": int(app.config["MAX_UPLOAD_MB"]),
                 "max_input_variants": int(app.config["MAX_INPUT_VARIANTS"]),
                 "run_retention_hours": int(app.config["RUN_RETENTION_HOURS"]),
+                "demo_sample": {
+                    **DEMO_SAMPLE,
+                    "available": Path(str(app.config["WEB_DEMO_VCF"])).exists(),
+                },
             }
         }
 
@@ -204,6 +220,9 @@ def create_app(test_config: dict | None = None) -> Flask:
                 current_page="home",
                 form_error=f"Uploaded file exceeds the {app.config['MAX_UPLOAD_MB']} MB limit.",
                 form_max_input_variants=int(app.config["MAX_INPUT_VARIANTS"]),
+                form_use_demo_sample=False,
+                form_demo_sample_id=DEMO_SAMPLE["id"],
+                form_assembly=GenomeAssembly.GRCH38.value,
             ),
             413,
         )
@@ -215,6 +234,9 @@ def create_app(test_config: dict | None = None) -> Flask:
             page_title="Variant Review Workbench",
             current_page="home",
             form_max_input_variants=int(app.config["MAX_INPUT_VARIANTS"]),
+            form_use_demo_sample=False,
+            form_demo_sample_id=DEMO_SAMPLE["id"],
+            form_assembly=GenomeAssembly.GRCH38.value,
         )
 
     @app.get("/docs")
@@ -231,10 +253,14 @@ def create_app(test_config: dict | None = None) -> Flask:
         job_prefix = "export" if mode == "export_only" else "run"
         job_id = f"{job_prefix}-{uuid4().hex[:8]}"
         export_format = request.form.get("export_format", "json")
-        assembly = request.form.get("assembly", "GRCh38")
+        assembly = request.form.get("assembly", GenomeAssembly.GRCH38.value)
         pharmgkb_enabled = request.form.get("enable_pharmgkb") == "true"
         requested_max_input_variants = request.form.get("max_input_variants")
+        use_demo_sample = request.form.get("use_demo_sample") == "true"
+        demo_sample_id = request.form.get("demo_sample_id", DEMO_SAMPLE["id"])
         uploaded_vcf = request.files.get("vcf_file")
+        if use_demo_sample:
+            assembly = DEMO_SAMPLE["assembly"]
 
         try:
             max_input_variants = _parse_max_input_variants(
@@ -249,6 +275,9 @@ def create_app(test_config: dict | None = None) -> Flask:
                     current_page="home",
                     form_error=str(error),
                     form_max_input_variants=requested_max_input_variants,
+                    form_use_demo_sample=use_demo_sample,
+                    form_demo_sample_id=demo_sample_id,
+                    form_assembly=assembly,
                 ),
                 400,
             )
@@ -260,7 +289,15 @@ def create_app(test_config: dict | None = None) -> Flask:
         )
         try:
             workspace = create_run_workspace(job_id=job_id, upload_root=upload_root, run_output_root=run_output_root)
-            workspace = save_uploaded_vcf(upload=uploaded_vcf, workspace=workspace)
+            if use_demo_sample:
+                if demo_sample_id != DEMO_SAMPLE["id"]:
+                    raise UploadValidationError("Requested demo sample is not available.")
+                workspace = save_demo_vcf(
+                    demo_vcf_path=Path(str(app.config["WEB_DEMO_VCF"])),
+                    workspace=workspace,
+                )
+            else:
+                workspace = save_uploaded_vcf(upload=uploaded_vcf, workspace=workspace)
         except UploadValidationError as error:
             return (
                 render_template(
@@ -269,12 +306,17 @@ def create_app(test_config: dict | None = None) -> Flask:
                     current_page="home",
                     form_error=str(error),
                     form_max_input_variants=max_input_variants,
+                    form_use_demo_sample=use_demo_sample,
+                    form_demo_sample_id=demo_sample_id,
+                    form_assembly=assembly,
                 ),
                 400,
             )
 
         metadata = {
             "assembly": assembly,
+            "use_demo_sample": use_demo_sample,
+            "demo_sample_id": demo_sample_id if use_demo_sample else None,
             "pharmgkb_enabled": pharmgkb_enabled,
             "max_input_variants": max_input_variants,
             "requested_export_format": export_format,
@@ -377,6 +419,11 @@ def create_app(test_config: dict | None = None) -> Flask:
         payload["max_input_variants"] = int(app.config["MAX_INPUT_VARIANTS"])
         payload["job_max_workers"] = int(app.config["JOB_MAX_WORKERS"])
         payload["max_upload_mb"] = runtime_settings.max_upload_mb
+        payload["demo_sample"] = {
+            **DEMO_SAMPLE,
+            "available": Path(str(app.config["WEB_DEMO_VCF"])).exists(),
+            "path": str(app.config["WEB_DEMO_VCF"]),
+        }
         status_code = 200 if payload["status"] == "ok" else 503
         return payload, status_code
 

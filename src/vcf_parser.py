@@ -247,3 +247,38 @@ def parse_vcf(input_path: Path, assembly: GenomeAssembly, max_variants: int | No
         raise ValueError("Input does not contain a #CHROM header line.")
 
     return variants
+
+
+def count_variants(input_path: Path) -> int:
+    """Count expanded alternate alleles in a VCF without materializing InputVariant objects."""
+    saw_header = False
+    variant_count = 0
+
+    with open_variant_stream(input_path) as handle:
+        for line_number, raw_line in enumerate(handle, start=1):
+            line = raw_line.strip()
+            if not line or line.startswith("##"):
+                continue
+
+            if line.startswith("#CHROM"):
+                header_fields = _split_vcf_fields(line)
+                _validate_header(header_fields)
+                saw_header = True
+                continue
+
+            if line.startswith("#"):
+                continue
+
+            if not saw_header:
+                raise ValueError("VCF record encountered before #CHROM header line.")
+
+            fields = _split_vcf_fields(line)
+            if len(fields) < 8:
+                raise ValueError(f"VCF record has fewer than 8 columns at line {line_number}.")
+
+            variant_count += len(fields[4].split(","))
+
+    if not saw_header:
+        raise ValueError("Input does not contain a #CHROM header line.")
+
+    return variant_count

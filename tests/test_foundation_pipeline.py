@@ -8,7 +8,7 @@ from pathlib import Path
 
 from src.clinvar_index import load_clinvar_index
 from src.models import GenomeAssembly
-from src.vcf_parser import parse_vcf
+from src.vcf_parser import count_variants, parse_vcf
 
 
 class FoundationPipelineTests(unittest.TestCase):
@@ -99,6 +99,23 @@ class FoundationPipelineTests(unittest.TestCase):
         self.assertEqual(len(variants), 2)
         self.assertEqual(variants[0].position, 43045702)
         self.assertEqual(variants[1].position, 43045703)
+
+    def test_count_variants_expands_multiallelic_records(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            input_path = Path(tmpdir) / "input.vcf"
+            input_path.write_text(
+                (
+                    "##fileformat=VCFv4.2\n"
+                    "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
+                    "17\t43045702\t.\tA\tG,T\t100\tPASS\tGENE=TP53\n"
+                    "17\t43045703\t.\tA\tC\t100\tPASS\tGENE=TP53\n"
+                ),
+                encoding="utf-8",
+            )
+
+            variant_count = count_variants(input_path)
+
+        self.assertEqual(variant_count, 3)
 
     def test_clinvar_index_matches_lowercase_input_and_filters_placeholder_conditions(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

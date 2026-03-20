@@ -51,6 +51,24 @@ def _build_no_clinvar_match_warning(summary: SummaryArtifact, assembly: str | No
     }
 
 
+def _build_input_limit_notice(run_metadata: RunMetadata | None) -> dict[str, str] | None:
+    """Build a user-facing notice when the input was intentionally truncated."""
+    if run_metadata is None or not run_metadata.input_variants_truncated:
+        return None
+
+    available_count = run_metadata.available_input_variant_count
+    input_limit = run_metadata.input_variant_limit
+    processed_count = run_metadata.statistics.input_variant_count
+    return {
+        "title": "Input variants were truncated for this run.",
+        "message": (
+            f"This execution processed {processed_count} variant(s) because "
+            f"--max-input-variants was set to {input_limit}. "
+            f"The source VCF contained {available_count} variant(s) after multi-allelic expansion."
+        ),
+    }
+
+
 def _serialize_sources(sources: list[object]) -> list[dict[str, object]]:
     """Convert provenance models or mapping-like objects into JSON-safe dicts."""
     serialized: list[dict[str, object]] = []
@@ -217,6 +235,7 @@ def build_report_context(
         "summary": report_summary,
         "summary_artifact": summary.model_dump(mode="json"),
         "no_clinvar_match_warning": _build_no_clinvar_match_warning(summary, assembly_value),
+        "input_limit_notice": _build_input_limit_notice(run_metadata),
         "top_findings": top_findings,
         "conflict_rows": conflict_rows,
         "variant_rows": rows,
@@ -236,6 +255,7 @@ def build_report_export_payload(report_context: dict[str, object]) -> dict[str, 
         "summary": report_context["summary"],
         "summary_artifact": report_context["summary_artifact"],
         "no_clinvar_match_warning": report_context.get("no_clinvar_match_warning"),
+        "input_limit_notice": report_context.get("input_limit_notice"),
         "top_findings": report_context["top_findings"],
         "conflict_rows": report_context["conflict_rows"],
         "variant_rows": report_context["variant_rows"],
@@ -300,6 +320,18 @@ def render_markdown_report_from_context(report_context: dict[str, object]) -> st
                 "",
                 f"- {warning.get('title', 'No ClinVar matches were found for this run.')}",
                 f"- {warning.get('message', '')}",
+                "",
+            ]
+        )
+    input_limit_notice = payload.get("input_limit_notice")
+    if input_limit_notice:
+        assert isinstance(input_limit_notice, dict)
+        lines.extend(
+            [
+                "## Input Limit Notice",
+                "",
+                f"- {input_limit_notice.get('title', 'Input variants were truncated for this run.')}",
+                f"- {input_limit_notice.get('message', '')}",
                 "",
             ]
         )

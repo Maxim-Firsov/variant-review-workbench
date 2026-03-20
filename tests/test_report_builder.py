@@ -151,6 +151,28 @@ class ReportBuilderTests(unittest.TestCase):
         self.assertIn("No ClinVar matches were found", warning["title"])
         self.assertIn("GRCh37", warning["message"])
 
+    def test_build_report_context_sets_input_limit_notice_when_run_was_truncated(self) -> None:
+        ranked_variants = [
+            build_ranked_variant("record-1", "TP53", 43045702, ReviewPriorityTier.HIGH_REVIEW_PRIORITY, 17.5),
+        ]
+        metadata = RunMetadata(
+            input_path="data/demo.vcf",
+            output_dir="outputs/demo",
+            assembly=GenomeAssembly.GRCH38,
+            input_variant_limit=1,
+            available_input_variant_count=3,
+            input_variants_truncated=True,
+        )
+        metadata.statistics.input_variant_count = 1
+
+        context = build_report_context(ranked_variants, metadata)
+
+        notice = context["input_limit_notice"]
+        self.assertIsNotNone(notice)
+        assert isinstance(notice, dict)
+        self.assertIn("Input variants were truncated", notice["title"])
+        self.assertIn("source VCF contained 3 variant(s)", notice["message"])
+
     def test_render_html_report_contains_expected_sections(self) -> None:
         ranked_variants = [
             build_ranked_variant("record-1", "TP53", 43045702, ReviewPriorityTier.HIGH_REVIEW_PRIORITY, 17.5, conflict=True),
@@ -225,6 +247,37 @@ class ReportBuilderTests(unittest.TestCase):
         self.assertIn("## Priority Tiers", markdown)
         self.assertIn("## Top Findings", markdown)
         self.assertIn("TP53", markdown)
+
+    def test_markdown_export_includes_input_limit_notice(self) -> None:
+        ranked_variants = [
+            build_ranked_variant("record-1", "TP53", 43045702, ReviewPriorityTier.HIGH_REVIEW_PRIORITY, 17.5),
+        ]
+        metadata = RunMetadata(
+            input_path="data/demo.vcf",
+            output_dir="outputs/demo",
+            assembly=GenomeAssembly.GRCH38,
+            input_variant_limit=1,
+            available_input_variant_count=4,
+            input_variants_truncated=True,
+        )
+        metadata.statistics.input_variant_count = 1
+
+        markdown = render_markdown_report(ranked_variants, metadata)
+        context = build_report_context(ranked_variants, metadata)
+
+        self.assertIn("## Input Limit Notice", markdown)
+        self.assertIn("source VCF contained 4 variant(s)", markdown)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            markdown_path = Path(tmpdir) / "report.md"
+            json_path = Path(tmpdir) / "report.json"
+            write_markdown_report(markdown_path, context)
+            write_report_export_json(json_path, context)
+
+            self.assertTrue(markdown_path.exists())
+            self.assertTrue(json_path.exists())
+            self.assertIn("Variant Review Report", markdown_path.read_text(encoding="utf-8"))
+            self.assertIn('"report_title": "Variant Review Report"', json_path.read_text(encoding="utf-8"))
 
         with tempfile.TemporaryDirectory() as tmpdir:
             markdown_path = Path(tmpdir) / "report.md"

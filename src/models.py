@@ -212,6 +212,9 @@ class RunMetadata(BaseModel):
     output_dir: str
     assembly: GenomeAssembly
     pharmgkb_enabled: bool = False
+    input_variant_limit: int | None = None
+    available_input_variant_count: int | None = None
+    input_variants_truncated: bool = False
     sources: list[DataProvenance] = Field(default_factory=list)
     statistics: RunStatistics = Field(default_factory=RunStatistics)
 

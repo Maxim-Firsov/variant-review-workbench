@@ -18,7 +18,7 @@ from .models import (
 from .pgx_enrichment import PharmGKBClient, enrich_annotated_variants
 from .ranker import rank_variants
 from .report_builder import build_report_context, build_variant_export_records, write_html_report, write_report_bundle
-from .vcf_parser import parse_vcf
+from .vcf_parser import count_variants, parse_vcf
 
 
 class PipelineUsageError(ValueError):
@@ -132,6 +132,11 @@ def run_pipeline_with_result(args: argparse.Namespace) -> PipelineRunResult:
     ranked_variants = rank_variants(annotated_variants)
 
     run_metadata = build_run_metadata(args, output_dir, clinvar_index.provenance)
+    if max_input_variants is not None:
+        available_input_variant_count = count_variants(input_path)
+        run_metadata.input_variant_limit = max_input_variants
+        run_metadata.available_input_variant_count = available_input_variant_count
+        run_metadata.input_variants_truncated = available_input_variant_count > len(input_variants)
     if pharmgkb_client is not None:
         run_metadata.sources.extend(pharmgkb_client.provenance)
     run_metadata.statistics.input_variant_count = len(input_variants)

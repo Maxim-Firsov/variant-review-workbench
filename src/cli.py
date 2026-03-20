@@ -101,6 +101,11 @@ def _emit_completion_summary(
     )
     if run_metadata.pharmgkb_enabled and stats.pharmgkb_enriched_count == 0:
         print("PharmGKB was enabled but no enrichment matches were found.")
+    if run_metadata.input_variants_truncated:
+        print(
+            "Input was truncated by --max-input-variants: "
+            f"processed {stats.input_variant_count} of {run_metadata.available_input_variant_count} available variant(s)."
+        )
     for label, path in outputs.items():
         print(f"{label}: {path.resolve()}")
 

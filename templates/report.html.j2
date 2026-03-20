@@ -235,6 +235,12 @@
           <p>{{ no_clinvar_match_warning.message }}</p>
         </div>
       {% endif %}
+      {% if input_limit_notice %}
+        <div class="notice-warning">
+          <strong>{{ input_limit_notice.title }}</strong>
+          <p>{{ input_limit_notice.message }}</p>
+        </div>
+      {% endif %}
     </section>
 
     <section>

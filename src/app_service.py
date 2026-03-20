@@ -37,6 +37,7 @@ class PipelineRunResult:
 def build_run_metadata(args: argparse.Namespace, output_dir: Path, index_sources: list) -> RunMetadata:
     """Construct run metadata after the ClinVar index has been prepared."""
     return RunMetadata(
+        report_title=getattr(args, "report_title", "Variant Review Report"),
         input_path=str(Path(args.input)),
         output_dir=str(output_dir),
         assembly=args.assembly,

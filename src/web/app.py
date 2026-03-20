@@ -53,6 +53,7 @@ def _build_pipeline_task_args(
         out_dir=str(output_dir),
         enable_pharmgkb=pharmgkb_enabled,
         max_input_variants=int(app.config["MAX_INPUT_VARIANTS"]),
+        report_title="Variant Review Report",
     )
 
 

@@ -70,6 +70,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Enable optional live PharmGKB enrichment with local response caching.",
     )
+    parser.add_argument(
+        "--report-title",
+        default="Variant Review Report",
+        help="Optional title used for the HTML, Markdown, and JSON report outputs.",
+    )
     return parser
 
 

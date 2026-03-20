@@ -207,6 +207,7 @@ class RunMetadata(BaseModel):
 
     project_name: str = "variant-review-workbench"
     run_started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    report_title: str = "Variant Review Report"
     input_path: str
     output_dir: str
     assembly: GenomeAssembly

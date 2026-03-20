@@ -54,6 +54,26 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(args.max_input_variants, 25)
 
+    def test_build_parser_accepts_custom_report_title(self) -> None:
+        parser = build_parser()
+
+        args = parser.parse_args(
+            [
+                "--input",
+                "input.vcf",
+                "--assembly",
+                "GRCh38",
+                "--variant-summary",
+                "variant_summary.txt.gz",
+                "--out-dir",
+                "outputs",
+                "--report-title",
+                "My Review",
+            ]
+        )
+
+        self.assertEqual(args.report_title, "My Review")
+
     def test_build_parser_rejects_unsupported_assembly(self) -> None:
         parser = build_parser()
 
@@ -230,6 +250,7 @@ class CliTests(unittest.TestCase):
                 out_dir=str(out_dir),
                 max_input_variants=None,
                 enable_pharmgkb=False,
+                report_title="Custom Variant Report",
             )
 
             outputs = run_pipeline(args)
@@ -251,9 +272,9 @@ class CliTests(unittest.TestCase):
         self.assertEqual(summary["input_variant_count"], 1)
         self.assertEqual(summary["conflict_flagged_count"], 1)
         self.assertEqual(metadata["statistics"]["clinvar_matched_count"], 1)
-        self.assertIn("Variant Review Report", report_html)
-        self.assertIn("# Variant Review Report", report_markdown)
-        self.assertEqual(report_export["report_title"], "Variant Review Report")
+        self.assertIn("Custom Variant Report", report_html)
+        self.assertIn("# Custom Variant Report", report_markdown)
+        self.assertEqual(report_export["report_title"], "Custom Variant Report")
         self.assertEqual(variants_json["schema_version"], "1.0")
         self.assertEqual(variants_json["artifact_type"], "prioritized_variants")
         self.assertEqual(variants_json["records"][0]["input_gene"], "TP53")
@@ -275,6 +296,7 @@ class CliTests(unittest.TestCase):
             out_dir="outputs",
             enable_pharmgkb=False,
             max_input_variants=None,
+            report_title="Variant Review Report",
         )
 
         with self.assertRaisesRegex(ValueError, "Input VCF was not found: missing.vcf"):
@@ -365,6 +387,7 @@ class CliTests(unittest.TestCase):
     def test_cli_main_uses_shared_pipeline_service(self) -> None:
         outputs = {"report_html": Path("report.html")}
         run_metadata = RunMetadata(
+            report_title="Custom Variant Report",
             input_path="input.vcf",
             output_dir="outputs",
             assembly=GenomeAssembly.GRCH38,

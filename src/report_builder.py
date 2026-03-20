@@ -208,7 +208,7 @@ def build_report_context(
     }
 
     return {
-        "report_title": "Variant Review Report",
+        "report_title": run_metadata.report_title if run_metadata is not None else "Variant Review Report",
         "generated_at": run_metadata.run_started_at.isoformat() if run_metadata is not None else None,
         "assembly": assembly_value,
         "input_path": run_metadata.input_path if run_metadata is not None else None,

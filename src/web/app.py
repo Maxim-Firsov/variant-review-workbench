@@ -39,6 +39,7 @@ def _build_pipeline_task_args(
     output_dir: Path,
     assembly: str,
     pharmgkb_enabled: bool,
+    max_input_variants: int,
     app: Flask,
 ) -> argparse.Namespace:
     """Build the shared pipeline argument namespace for a web-submitted run."""
@@ -52,7 +53,7 @@ def _build_pipeline_task_args(
         disable_clinvar_cache=bool(app.config["DISABLE_CLINVAR_CACHE"]),
         out_dir=str(output_dir),
         enable_pharmgkb=pharmgkb_enabled,
-        max_input_variants=int(app.config["MAX_INPUT_VARIANTS"]),
+        max_input_variants=max_input_variants,
         top_findings_limit=5,
         report_title="Variant Review Report",
     )
@@ -64,6 +65,7 @@ def _run_pipeline_job(
     assembly: str,
     mode: str,
     pharmgkb_enabled: bool,
+    max_input_variants: int,
     export_format: str | None,
     uploaded_vcf_path: Path,
     output_dir: Path,
@@ -75,6 +77,7 @@ def _run_pipeline_job(
         output_dir=output_dir,
         assembly=assembly,
         pharmgkb_enabled=pharmgkb_enabled,
+        max_input_variants=max_input_variants,
         app=app,
     )
     pipeline_result = run_pipeline_with_result(pipeline_args)
@@ -85,7 +88,7 @@ def _run_pipeline_job(
         "assembly": assembly,
         "mode": mode,
         "export_format": export_format,
-        "max_input_variants": int(app.config["MAX_INPUT_VARIANTS"]),
+        "max_input_variants": max_input_variants,
         "pharmgkb_enabled": pharmgkb_enabled,
         "uploaded_vcf_path": str(uploaded_vcf_path),
         "output_dir": str(output_dir),
@@ -114,6 +117,21 @@ def _resolve_export_path(job_result: dict[str, object], export_format: str) -> t
     field_name, mimetype, download_name = mapping[export_format]
     export_path = Path(str(job_result[field_name]))
     return export_path, mimetype, download_name
+
+
+def _parse_max_input_variants(raw_value: str | None, *, configured_max: int) -> int:
+    """Parse a web-request variant cap constrained to a safe hosted range."""
+    if raw_value is None or not raw_value.strip():
+        return configured_max
+
+    try:
+        parsed = int(raw_value)
+    except ValueError as error:
+        raise PipelineUsageError("Variant limit must be an integer.") from error
+
+    if parsed < 5 or parsed > configured_max:
+        raise PipelineUsageError(f"Variant limit must be between 5 and {configured_max}.")
+    return parsed
 
 
 def create_app(test_config: dict | None = None) -> Flask:
@@ -185,6 +203,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                 page_title="Variant Review Workbench",
                 current_page="home",
                 form_error=f"Uploaded file exceeds the {app.config['MAX_UPLOAD_MB']} MB limit.",
+                form_max_input_variants=int(app.config["MAX_INPUT_VARIANTS"]),
             ),
             413,
         )
@@ -195,6 +214,7 @@ def create_app(test_config: dict | None = None) -> Flask:
             "web/home.html.j2",
             page_title="Variant Review Workbench",
             current_page="home",
+            form_max_input_variants=int(app.config["MAX_INPUT_VARIANTS"]),
         )
 
     @app.get("/docs")
@@ -213,7 +233,25 @@ def create_app(test_config: dict | None = None) -> Flask:
         export_format = request.form.get("export_format", "json")
         assembly = request.form.get("assembly", "GRCh38")
         pharmgkb_enabled = request.form.get("enable_pharmgkb") == "true"
+        requested_max_input_variants = request.form.get("max_input_variants")
         uploaded_vcf = request.files.get("vcf_file")
+
+        try:
+            max_input_variants = _parse_max_input_variants(
+                requested_max_input_variants,
+                configured_max=int(app.config["MAX_INPUT_VARIANTS"]),
+            )
+        except PipelineUsageError as error:
+            return (
+                render_template(
+                    "web/home.html.j2",
+                    page_title="Variant Review Workbench",
+                    current_page="home",
+                    form_error=str(error),
+                    form_max_input_variants=requested_max_input_variants,
+                ),
+                400,
+            )
 
         cleanup_expired_run_directories(
             upload_root=upload_root,
@@ -230,6 +268,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                     page_title="Variant Review Workbench",
                     current_page="home",
                     form_error=str(error),
+                    form_max_input_variants=max_input_variants,
                 ),
                 400,
             )
@@ -237,6 +276,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         metadata = {
             "assembly": assembly,
             "pharmgkb_enabled": pharmgkb_enabled,
+            "max_input_variants": max_input_variants,
             "requested_export_format": export_format,
             "uploaded_vcf_path": str(workspace.uploaded_vcf_path),
             "output_dir": str(workspace.output_dir),
@@ -254,6 +294,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                 assembly=assembly,
                 mode=mode,
                 pharmgkb_enabled=pharmgkb_enabled,
+                max_input_variants=max_input_variants,
                 export_format=export_format,
                 uploaded_vcf_path=workspace.uploaded_vcf_path,
                 output_dir=workspace.output_dir,

@@ -94,7 +94,7 @@
 
       <fieldset class="fieldset">
         <legend>Options</legend>
-        <div class="checklist">
+        <div class="checklist" style="margin-bottom: 14px;">
           <label class="check" for="enable_pharmgkb">
             <input id="enable_pharmgkb" name="enable_pharmgkb" type="checkbox" value="true">
             <span>Include PharmGKB enrichment</span>
@@ -103,6 +103,20 @@
             <input id="mode_export_only" name="mode" type="checkbox" value="export_only" data-export-only>
             <span>Return export only</span>
           </label>
+        </div>
+        <div class="field">
+          <label for="max_input_variants">Variant limit</label>
+          <input
+            id="max_input_variants"
+            name="max_input_variants"
+            type="number"
+            min="5"
+            max="{{ web_scope.max_input_variants }}"
+            step="1"
+            value="{{ form_max_input_variants | default(web_scope.max_input_variants) }}"
+            required
+          >
+          <small>Integer from 5 to {{ web_scope.max_input_variants }}. Default: {{ web_scope.max_input_variants }}.</small>
         </div>
       </fieldset>
 

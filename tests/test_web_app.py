@@ -199,6 +199,10 @@ class WebAppTests(unittest.TestCase):
         self.assertIn(b"Research use only.", response.data)
         self.assertIn(b"25 MB", response.data)
         self.assertIn(b"Do not upload patient-identifying data.", response.data)
+        self.assertIn(b'name="max_input_variants"', response.data)
+        self.assertIn(b'min="5"', response.data)
+        self.assertIn(b'max="3000"', response.data)
+        self.assertIn(b'value="3000"', response.data)
 
     def test_docs_page_renders_project_context(self) -> None:
         response = self.client.get("/docs")
@@ -310,6 +314,7 @@ class WebAppTests(unittest.TestCase):
             data={
                 "assembly": "GRCh38",
                 "export_format": "json",
+                "max_input_variants": "3000",
                 "vcf_file": (io.BytesIO(self._demo_vcf_bytes()), "demo.vcf"),
             },
             content_type="multipart/form-data",
@@ -325,6 +330,7 @@ class WebAppTests(unittest.TestCase):
                 "assembly": "GRCh38",
                 "mode": "export_only",
                 "export_format": "md",
+                "max_input_variants": "3000",
                 "vcf_file": (io.BytesIO(self._demo_vcfgz_bytes()), "demo.vcf.gz"),
             },
             content_type="multipart/form-data",
@@ -347,6 +353,7 @@ class WebAppTests(unittest.TestCase):
             data={
                 "assembly": "GRCh38",
                 "export_format": "html",
+                "max_input_variants": "3000",
                 "vcf_file": (io.BytesIO(self._demo_vcf_bytes()), "demo.vcf"),
             },
             content_type="multipart/form-data",
@@ -371,6 +378,7 @@ class WebAppTests(unittest.TestCase):
             data={
                 "assembly": "GRCh37",
                 "export_format": "html",
+                "max_input_variants": "3000",
                 "vcf_file": (io.BytesIO(self._demo_vcf_bytes()), "demo.vcf"),
             },
             content_type="multipart/form-data",
@@ -389,6 +397,7 @@ class WebAppTests(unittest.TestCase):
             data={
                 "assembly": "GRCh37",
                 "export_format": "json",
+                "max_input_variants": "3000",
                 "vcf_file": (io.BytesIO(self._demo_vcf_bytes()), "demo.vcf"),
             },
             content_type="multipart/form-data",
@@ -413,6 +422,7 @@ class WebAppTests(unittest.TestCase):
             data={
                 "assembly": "GRCh38",
                 "export_format": "json",
+                "max_input_variants": "3000",
                 "vcf_file": (io.BytesIO(self._demo_vcf_bytes()), "demo.vcf"),
             },
             content_type="multipart/form-data",
@@ -430,8 +440,30 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(payload["result"]["mode"], "report")
         self.assertTrue(payload["metadata"]["uploaded_vcf_path"].endswith("demo.vcf"))
         self.assertIn(run_id, payload["metadata"]["output_dir"])
+        self.assertEqual(payload["metadata"]["max_input_variants"], 3000)
         self.assertTrue(payload["result"]["report_html_path"].endswith("report.html"))
         self.assertEqual(payload["result"]["summary"]["clinvar_matched_count"], 1)
+
+    def test_create_run_uses_custom_variant_limit(self) -> None:
+        create_response = self.client.post(
+            "/runs",
+            data={
+                "assembly": "GRCh38",
+                "export_format": "json",
+                "max_input_variants": "25",
+                "vcf_file": (io.BytesIO(self._demo_vcf_bytes()), "demo.vcf"),
+            },
+            content_type="multipart/form-data",
+        )
+        run_id = create_response.headers["Location"].rstrip("/").split("/")[-1]
+
+        response = self.client.get(f"/runs/{run_id}/status")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        assert payload is not None
+        self.assertEqual(payload["metadata"]["max_input_variants"], 25)
+        self.assertEqual(payload["result"]["max_input_variants"], 25)
 
     def test_status_endpoint_returns_404_for_missing_run(self) -> None:
         response = self.client.get("/runs/run-missing/status")
@@ -452,7 +484,7 @@ class WebAppTests(unittest.TestCase):
     def test_create_run_rejects_missing_upload(self) -> None:
         response = self.client.post(
             "/runs",
-            data={"assembly": "GRCh38", "export_format": "json"},
+            data={"assembly": "GRCh38", "export_format": "json", "max_input_variants": "3000"},
             content_type="multipart/form-data",
         )
 
@@ -466,6 +498,7 @@ class WebAppTests(unittest.TestCase):
             data={
                 "assembly": "GRCh38",
                 "export_format": "json",
+                "max_input_variants": "3000",
                 "vcf_file": (io.BytesIO(b"not a vcf"), "notes.txt"),
             },
             content_type="multipart/form-data",
@@ -480,6 +513,7 @@ class WebAppTests(unittest.TestCase):
             data={
                 "assembly": "GRCh38",
                 "export_format": "json",
+                "max_input_variants": "3000",
                 "vcf_file": (io.BytesIO(b"plain text"), "notes.vcf"),
             },
             content_type="multipart/form-data",
@@ -494,6 +528,7 @@ class WebAppTests(unittest.TestCase):
             data={
                 "assembly": "GRCh38",
                 "export_format": "json",
+                "max_input_variants": "3000",
                 "vcf_file": (io.BytesIO(b"not gzip data"), "notes.vcf.gz"),
             },
             content_type="multipart/form-data",
@@ -524,6 +559,7 @@ class WebAppTests(unittest.TestCase):
             data={
                 "assembly": "GRCh38",
                 "export_format": "json",
+                "max_input_variants": "3000",
                 "vcf_file": (io.BytesIO(self._demo_vcf_bytes()), "demo.vcf"),
             },
             content_type="multipart/form-data",
@@ -540,6 +576,7 @@ class WebAppTests(unittest.TestCase):
             data={
                 "assembly": "GRCh38",
                 "export_format": "json",
+                "max_input_variants": "3000",
                 "vcf_file": (io.BytesIO(self._demo_vcf_bytes()), "..\\unsafe-demo.vcf"),
             },
             content_type="multipart/form-data",
@@ -563,6 +600,7 @@ class WebAppTests(unittest.TestCase):
             data={
                 "assembly": "GRCh38",
                 "export_format": "html",
+                "max_input_variants": "3000",
                 "vcf_file": (io.BytesIO(self._demo_vcf_bytes()), "demo.vcf"),
             },
             content_type="multipart/form-data",
@@ -581,6 +619,7 @@ class WebAppTests(unittest.TestCase):
             data={
                 "assembly": "GRCh38",
                 "export_format": "json",
+                "max_input_variants": "3000",
                 "vcf_file": (io.BytesIO(self._demo_vcf_bytes()), "demo.vcf"),
             },
             content_type="multipart/form-data",
@@ -606,6 +645,7 @@ class WebAppTests(unittest.TestCase):
             data={
                 "assembly": "GRCh38",
                 "export_format": "json",
+                "max_input_variants": "3000",
                 "vcf_file": (io.BytesIO(self._demo_vcf_bytes()), "demo.vcf"),
             },
             content_type="multipart/form-data",
@@ -640,6 +680,7 @@ class WebAppTests(unittest.TestCase):
                 data={
                     "assembly": "GRCh38",
                     "export_format": "json",
+                    "max_input_variants": "3000",
                     "vcf_file": (io.BytesIO(self._demo_vcf_bytes()), "demo.vcf"),
                 },
                 content_type="multipart/form-data",
@@ -716,6 +757,7 @@ class WebAppTests(unittest.TestCase):
                 data={
                     "assembly": "GRCh38",
                     "export_format": "json",
+                    "max_input_variants": "3000",
                     "vcf_file": (io.BytesIO(self._demo_vcf_bytes()), "demo.vcf"),
                 },
                 content_type="multipart/form-data",
@@ -801,6 +843,7 @@ class WebAppTests(unittest.TestCase):
                     data={
                         "assembly": "GRCh38",
                         "export_format": "json",
+                        "max_input_variants": "3000",
                         "vcf_file": (io.BytesIO(payload), filename),
                     },
                     content_type="multipart/form-data",
@@ -832,6 +875,36 @@ class WebAppTests(unittest.TestCase):
                 self.assertEqual(final_payload["status"], "succeeded")
                 final_results = client.get(run_path)
                 self.assertEqual(final_results.status_code, 200)
+
+    def test_create_run_rejects_variant_limit_below_range(self) -> None:
+        response = self.client.post(
+            "/runs",
+            data={"assembly": "GRCh38", "export_format": "json", "max_input_variants": "4"},
+            content_type="multipart/form-data",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(b"Variant limit must be between 5 and 3000.", response.data)
+
+    def test_create_run_rejects_variant_limit_above_range(self) -> None:
+        response = self.client.post(
+            "/runs",
+            data={"assembly": "GRCh38", "export_format": "json", "max_input_variants": "3001"},
+            content_type="multipart/form-data",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(b"Variant limit must be between 5 and 3000.", response.data)
+
+    def test_create_run_rejects_non_integer_variant_limit(self) -> None:
+        response = self.client.post(
+            "/runs",
+            data={"assembly": "GRCh38", "export_format": "json", "max_input_variants": "abc"},
+            content_type="multipart/form-data",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(b"Variant limit must be an integer.", response.data)
 
 
 if __name__ == "__main__":

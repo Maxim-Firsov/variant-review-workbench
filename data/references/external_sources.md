@@ -13,8 +13,6 @@ This file centralizes the public data and API endpoints used by `variant-review-
 - `data/clinvar/raw/variant_summary.txt.gz`
 - `data/clinvar/raw/submission_summary.txt.gz`
 - `data/clinvar/raw/summary_of_conflicting_interpretations.txt`
-- `data/clinvar/raw/clinvar_grch38.vcf.gz`
-- `data/clinvar/raw/clinvar_grch37.vcf.gz`
 
 ## PharmGKB / ClinPGx
 
@@ -26,7 +24,4 @@ This file centralizes the public data and API endpoints used by `variant-review-
   - `https://api.pharmgkb.org/v1/data/variant`
   - `https://api.pharmgkb.org/v1/data/clinicalAnnotation`
 
-## Ensembl REST
-
-- API base: `https://rest.ensembl.org`
-- Docs: `https://rest.ensembl.org/`
+This repository's current runtime path uses the tab-delimited ClinVar snapshot files above plus optional PharmGKB API calls. It does not currently depend on Ensembl REST in the shipped pipeline.

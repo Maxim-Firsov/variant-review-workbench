@@ -25,7 +25,7 @@ This repository focuses on that gap. It is not a full annotation platform or a c
 - attaches conflict and submission context when available
 - optionally enriches variants with PharmGKB gene, variant, clinical annotation, and guideline data
 - ranks findings with transparent heuristics
-- writes HTML, JSON, CSV, and run metadata outputs
+- writes HTML, Markdown, JSON, CSV, and run metadata outputs
 
 ## Product Boundary
 
@@ -143,6 +143,10 @@ Each run writes:
   - reproducibility metadata, source provenance, and counts
 - `report.html`
   - analyst-facing HTML report with top findings, conflicts, methods, and limitations
+- `report.md`
+  - Markdown report generated from the same shared report context as the HTML view
+- `report_export.json`
+  - JSON-safe export of the rendered report context for downstream consumers
 
 ## Important Runtime Note
 
@@ -184,6 +188,7 @@ The machine-readable outputs are intentionally separate from the human-oriented 
   - `clinvar_unmatched_count`
   - `conflict_flagged_count`
   - `pharmgkb_enriched_count`
+  - `gene_symbol_mismatch_count`
   - `review_priority_tier_counts`
 
 ## Setup
@@ -277,7 +282,9 @@ python -m src.cli `
   --variant-summary data\clinvar\raw\variant_summary.txt.gz `
   --conflict-summary data\clinvar\raw\summary_of_conflicting_interpretations.txt `
   --submission-summary data\clinvar\raw\submission_summary.txt.gz `
-  --out-dir outputs\demo_run
+  --out-dir outputs\demo_run `
+  --report-title "Variant Review Report" `
+  --top-findings-limit 5
 ```
 
 Web reviewer path:
@@ -466,6 +473,7 @@ The current score uses:
 - input impact severity
 - optional PharmGKB context
 - gene-symbol mismatch penalty
+- visible truncated-input notices when `--max-input-variants` is used
 
 The system emits a numeric score, a priority tier, and a rationale list for every ranked variant.
 
@@ -564,7 +572,7 @@ Implemented and tested:
 
 Current automated test count:
 
-- `86` passing unit tests
+- `96` passing unit tests
 
 
 ## Limitations

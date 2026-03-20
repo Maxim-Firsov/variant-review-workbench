@@ -216,6 +216,16 @@ class WebAppTests(unittest.TestCase):
         self.assertIn(b"Limits", response.data)
         self.assertIn(b"The site reuses a shared ClinVar cache.", response.data)
 
+    def test_about_page_renders_project_context(self) -> None:
+        response = self.client.get("/about")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Why this tool exists", response.data)
+        self.assertIn(b"portfolio project", response.data)
+        self.assertIn(b"What feedback is useful", response.data)
+        self.assertIn(b"What to include", response.data)
+        self.assertIn(b"Repository", response.data)
+
     def test_site_pages_send_no_cache_headers(self) -> None:
         response = self.client.get("/")
 
@@ -223,6 +233,12 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(response.headers.get("Cache-Control"), "no-store, no-cache, must-revalidate, max-age=0")
         self.assertEqual(response.headers.get("Pragma"), "no-cache")
         self.assertEqual(response.headers.get("Expires"), "0")
+
+    def test_home_page_includes_about_navigation(self) -> None:
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b">About</a>", response.data)
 
     def test_health_check_returns_ok(self) -> None:
         response = self.client.get("/healthz")

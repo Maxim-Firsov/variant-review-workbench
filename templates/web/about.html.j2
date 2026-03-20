@@ -1,0 +1,58 @@
+{% extends "web/base.html.j2" %}
+
+{% block content %}
+  <section class="hero">
+    <p class="eyebrow">About</p>
+    <h1>Why this tool exists</h1>
+    <p>
+      Variant files are compact and difficult to review directly. This tool turns a VCF into a ranked report with
+      ClinVar matches, conflict flags, and export files that are easier to inspect.
+    </p>
+    <div class="actions">
+      <a class="button" href="{{ url_for('home') }}">Open run form</a>
+      <a class="button ghost" href="https://github.com/Maxim-Firsov/variant-review-workbench" target="_blank" rel="noreferrer">Repository</a>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-top: 24px;">
+    <div class="docs-grid">
+      <div class="doc-card">
+        <strong>Use case</strong>
+        <p>Review a small set of variants, check known ClinVar records, and export the result in standard formats.</p>
+      </div>
+      <div class="doc-card">
+        <strong>Portfolio project</strong>
+        <p>This web app is part of the Variant Review Workbench portfolio project and shares the same pipeline as the CLI.</p>
+      </div>
+      <div class="doc-card">
+        <strong>Output</strong>
+        <p>Each run produces a report preview plus HTML, JSON, Markdown, summary, and metadata files.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-top: 24px;">
+    <div class="panel-grid">
+      <div>
+        <h2>What feedback is useful</h2>
+        <ul>
+          <li>Whether the upload and run steps are clear without extra explanation.</li>
+          <li>Whether the report output is easy to scan and understand.</li>
+          <li>Whether the labels, counts, and warnings are clear.</li>
+          <li>Whether the export choices match what you would expect to download.</li>
+          <li>Any confusing wording, missing information, or unnecessary steps.</li>
+        </ul>
+      </div>
+      <div>
+        <h2>What to include</h2>
+        <ul>
+          <li>The page or action where the issue appears.</li>
+          <li>What you expected to happen.</li>
+          <li>What actually happened.</li>
+          <li>A screenshot or copied message if one is available.</li>
+          <li>The file type and assembly you used, if relevant.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+{% endblock %}

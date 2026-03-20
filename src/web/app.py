@@ -247,6 +247,14 @@ def create_app(test_config: dict | None = None) -> Flask:
             current_page="docs",
         )
 
+    @app.get("/about")
+    def about() -> str:
+        return render_template(
+            "web/about.html.j2",
+            page_title="About Variant Review Workbench",
+            current_page="about",
+        )
+
     @app.post("/runs")
     def create_run() -> tuple[str, int] | object:
         mode = "export_only" if request.form.get("mode") == "export_only" else "report"

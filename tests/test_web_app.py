@@ -192,7 +192,7 @@ class WebAppTests(unittest.TestCase):
         response = self.client.get("/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Review a VCF through the same pipeline used by the CLI.", response.data)
+        self.assertIn(b"Build a variant triage for research selection.", response.data)
         self.assertIn(b"Run Setup", response.data)
         self.assertIn(b'enctype="multipart/form-data"', response.data)
         self.assertIn(b"3 Formats", response.data)

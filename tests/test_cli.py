@@ -422,6 +422,7 @@ class CliTests(unittest.TestCase):
         run_metadata.statistics.clinvar_matched_count = 1
         run_metadata.statistics.conflict_flagged_count = 0
         run_metadata.statistics.pharmgkb_enriched_count = 0
+        run_metadata.statistics.gene_symbol_mismatch_count = 0
 
         with patch("src.cli.run_pipeline_with_details", return_value=(outputs, run_metadata)):
             with patch("sys.argv", ["prog", "--input", "input.vcf", "--assembly", "GRCh38", "--variant-summary", "variant_summary.txt.gz", "--out-dir", "outputs"]):
@@ -444,6 +445,7 @@ class CliTests(unittest.TestCase):
         run_metadata.statistics.clinvar_matched_count = 1
         run_metadata.statistics.conflict_flagged_count = 0
         run_metadata.statistics.pharmgkb_enriched_count = 0
+        run_metadata.statistics.gene_symbol_mismatch_count = 0
 
         with patch("src.cli.run_pipeline_with_details", return_value=(outputs, run_metadata)) as mock_run:
                 with patch("sys.argv", ["prog", "--input", "input.vcf", "--assembly", "GRCh38", "--variant-summary", "variant_summary.txt.gz", "--out-dir", "outputs"]):

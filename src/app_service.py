@@ -148,6 +148,9 @@ def run_pipeline_with_result(args: argparse.Namespace) -> PipelineRunResult:
         for item in annotated_variants
         if item.pharmgkb is not None and item.pharmgkb.matched
     )
+    run_metadata.statistics.gene_symbol_mismatch_count = sum(
+        1 for item in annotated_variants if "gene_symbol_mismatch" in item.flags
+    )
 
     report_context = build_report_context(
         ranked_variants,

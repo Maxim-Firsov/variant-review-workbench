@@ -228,6 +228,10 @@
           <div class="metric-label">PharmGKB Enriched</div>
           <div class="metric-value">{{ summary.pharmgkb_count }}</div>
         </div>
+        <div class="card">
+          <div class="metric-label">Gene Mismatches</div>
+          <div class="metric-value">{{ summary.gene_symbol_mismatch_count }}</div>
+        </div>
       </div>
       {% if no_clinvar_match_warning %}
         <div class="notice-warning">
@@ -298,6 +302,34 @@
         </table>
       {% else %}
         <p class="small">No conflict-flagged ClinVar matches were present in this run.</p>
+      {% endif %}
+    </section>
+
+    <section>
+      <h2>Gene Symbol Mismatches</h2>
+      {% if gene_mismatch_rows %}
+        <table>
+          <thead>
+            <tr>
+              <th>Gene</th>
+              <th>Locus</th>
+              <th>ClinVar</th>
+              <th>Flags</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in gene_mismatch_rows %}
+              <tr>
+                <td data-label="Gene">{{ row.gene }}</td>
+                <td data-label="Locus">{{ row.locus }}</td>
+                <td data-label="ClinVar">{{ row.clinical_significance }}</td>
+                <td data-label="Flags">{{ row.flags | join(", ") }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="small">No gene-symbol mismatches were flagged in this run.</p>
       {% endif %}
     </section>
 

@@ -95,6 +95,9 @@ def build_report_summary(ranked_variants: list[RankedVariant]) -> SummaryArtifac
     tier_counts = Counter(ranked.priority_tier.value for ranked in ranked_variants)
     matched_count = sum(1 for ranked in ranked_variants if ranked.annotated_variant.has_clinvar_match)
     conflict_count = sum(1 for ranked in ranked_variants if ranked.annotated_variant.has_conflict)
+    gene_symbol_mismatch_count = sum(
+        1 for ranked in ranked_variants if "gene_symbol_mismatch" in ranked.annotated_variant.flags
+    )
     pharmgkb_count = sum(
         1
         for ranked in ranked_variants
@@ -107,6 +110,7 @@ def build_report_summary(ranked_variants: list[RankedVariant]) -> SummaryArtifac
         clinvar_unmatched_count=len(ranked_variants) - matched_count,
         conflict_flagged_count=conflict_count,
         pharmgkb_enriched_count=pharmgkb_count,
+        gene_symbol_mismatch_count=gene_symbol_mismatch_count,
         review_priority_tier_counts={
             ReviewPriorityTier.HIGH_REVIEW_PRIORITY.value: tier_counts.get(ReviewPriorityTier.HIGH_REVIEW_PRIORITY.value, 0),
             ReviewPriorityTier.REVIEW.value: tier_counts.get(ReviewPriorityTier.REVIEW.value, 0),
@@ -215,6 +219,7 @@ def build_report_context(
     rows = [_build_variant_row(ranked_variant) for ranked_variant in ranked_variants[:MAX_REPORT_TABLE_ROWS]]
     top_findings = rows[: min(top_findings_limit, len(rows))]
     conflict_rows = [row for row in rows if row["conflict"] == "Yes"]
+    gene_mismatch_rows = [row for row in rows if "gene_symbol_mismatch" in row["flags"]]
     truncated_variant_count = max(0, len(ranked_variants) - MAX_REPORT_TABLE_ROWS)
     report_summary = {
         "variant_count": summary.input_variant_count,
@@ -224,6 +229,7 @@ def build_report_context(
         "clinvar_unmatched_count": summary.clinvar_unmatched_count,
         "conflict_count": summary.conflict_flagged_count,
         "pharmgkb_count": summary.pharmgkb_enriched_count,
+        "gene_symbol_mismatch_count": summary.gene_symbol_mismatch_count,
         "tier_counts": summary.review_priority_tier_counts,
     }
 
@@ -238,6 +244,7 @@ def build_report_context(
         "input_limit_notice": _build_input_limit_notice(run_metadata),
         "top_findings": top_findings,
         "conflict_rows": conflict_rows,
+        "gene_mismatch_rows": gene_mismatch_rows,
         "variant_rows": rows,
         "methods_notes": METHODS_NOTES,
         "limitations_notes": LIMITATIONS_NOTES,
@@ -258,6 +265,7 @@ def build_report_export_payload(report_context: dict[str, object]) -> dict[str, 
         "input_limit_notice": report_context.get("input_limit_notice"),
         "top_findings": report_context["top_findings"],
         "conflict_rows": report_context["conflict_rows"],
+        "gene_mismatch_rows": report_context["gene_mismatch_rows"],
         "variant_rows": report_context["variant_rows"],
         "methods_notes": report_context["methods_notes"],
         "limitations_notes": report_context["limitations_notes"],
@@ -284,6 +292,7 @@ def render_markdown_report_from_context(report_context: dict[str, object]) -> st
         f"- ClinVar unmatched: {summary['clinvar_unmatched_count']}",
         f"- Conflict flagged: {summary['conflict_count']}",
         f"- PharmGKB enriched: {summary['pharmgkb_count']}",
+        f"- Gene-symbol mismatches: {summary['gene_symbol_mismatch_count']}",
         "",
     ]
     tier_counts = summary.get("tier_counts", {})
@@ -357,6 +366,21 @@ def render_markdown_report_from_context(report_context: dict[str, object]) -> st
                 "",
             ]
         )
+
+    gene_mismatch_rows = payload["gene_mismatch_rows"]
+    assert isinstance(gene_mismatch_rows, list)
+    if gene_mismatch_rows:
+        lines.extend(["## Gene Symbol Mismatches", ""])
+        for row in gene_mismatch_rows:
+            assert isinstance(row, dict)
+            lines.extend(
+                [
+                    f"### {row['gene']} ({row['locus']})",
+                    f"- Input/ClinVar mismatch flag(s): {', '.join(row['flags'])}",
+                    f"- ClinVar significance: {row['clinical_significance']}",
+                    "",
+                ]
+            )
 
     lines.extend(["## Methods", ""])
     methods_notes = payload["methods_notes"]

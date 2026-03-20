@@ -35,6 +35,7 @@ def build_ranked_variant(
     *,
     conflict: bool = False,
     matched: bool = True,
+    gene_mismatch: bool = False,
 ) -> RankedVariant:
     input_variant = InputVariant(
         record_id=record_id,
@@ -64,7 +65,7 @@ def build_ranked_variant(
     annotated = AnnotatedVariant(
         input_variant=input_variant,
         clinvar=clinvar,
-        flags=["clinvar_matched"] if matched else ["clinvar_unmatched"],
+        flags=(["clinvar_matched"] if matched else ["clinvar_unmatched"]) + (["gene_symbol_mismatch"] if gene_mismatch else []),
     )
     return RankedVariant(
         annotated_variant=annotated,
@@ -107,6 +108,7 @@ class ReportBuilderTests(unittest.TestCase):
         self.assertEqual(context["summary"]["variant_count"], 3)
         self.assertEqual(context["summary"]["clinvar_matched_count"], 2)
         self.assertEqual(context["summary"]["conflict_count"], 1)
+        self.assertEqual(context["summary"]["gene_symbol_mismatch_count"], 0)
         self.assertEqual(context["summary_artifact"]["input_variant_count"], 3)
         self.assertEqual(context["summary_artifact"]["conflict_flagged_count"], 1)
         self.assertEqual(len(context["top_findings"]), 3)
@@ -190,6 +192,7 @@ class ReportBuilderTests(unittest.TestCase):
         self.assertIn("Top Findings", html)
         self.assertIn("Conflict Review Queue", html)
         self.assertIn("Variant Table", html)
+        self.assertIn("Gene Symbol Mismatches", html)
         self.assertIn("Methods", html)
         self.assertIn("Limitations", html)
         self.assertIn("TP53", html)
@@ -228,7 +231,7 @@ class ReportBuilderTests(unittest.TestCase):
 
     def test_markdown_and_json_exports_use_shared_report_context(self) -> None:
         ranked_variants = [
-            build_ranked_variant("record-1", "TP53", 43045702, ReviewPriorityTier.HIGH_REVIEW_PRIORITY, 17.5, conflict=True),
+            build_ranked_variant("record-1", "TP53", 43045702, ReviewPriorityTier.HIGH_REVIEW_PRIORITY, 17.5, conflict=True, gene_mismatch=True),
         ]
         metadata = RunMetadata(
             input_path="data/demo.vcf",
@@ -243,7 +246,9 @@ class ReportBuilderTests(unittest.TestCase):
 
         self.assertEqual(payload["report_title"], "Variant Review Report")
         self.assertEqual(payload["summary"]["clinvar_matched_count"], 1)
+        self.assertEqual(payload["summary"]["gene_symbol_mismatch_count"], 1)
         self.assertIn("# Variant Review Report", markdown)
+        self.assertIn("## Gene Symbol Mismatches", markdown)
         self.assertIn("## Priority Tiers", markdown)
         self.assertIn("## Top Findings", markdown)
         self.assertIn("TP53", markdown)

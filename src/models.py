@@ -198,6 +198,7 @@ class RunStatistics(BaseModel):
     clinvar_unmatched_count: int = 0
     conflict_flagged_count: int = 0
     pharmgkb_enriched_count: int = 0
+    gene_symbol_mismatch_count: int = 0
 
 
 class RunMetadata(BaseModel):
@@ -287,4 +288,5 @@ class SummaryArtifact(BaseModel):
     clinvar_unmatched_count: int = 0
     conflict_flagged_count: int = 0
     pharmgkb_enriched_count: int = 0
+    gene_symbol_mismatch_count: int = 0
     review_priority_tier_counts: dict[str, int] = Field(default_factory=dict)

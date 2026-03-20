@@ -96,7 +96,8 @@ def _emit_completion_summary(
             f"{stats.input_variant_count} input variant(s), "
             f"{stats.clinvar_matched_count} ClinVar match(es), "
             f"{stats.conflict_flagged_count} conflict-flagged, "
-            f"{stats.pharmgkb_enriched_count} PharmGKB-enriched."
+            f"{stats.pharmgkb_enriched_count} PharmGKB-enriched, "
+            f"{stats.gene_symbol_mismatch_count} gene-symbol mismatch(es)."
         )
     )
     if run_metadata.pharmgkb_enabled and stats.pharmgkb_enriched_count == 0:

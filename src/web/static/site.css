@@ -356,6 +356,16 @@ li {
   border-radius: 14px;
 }
 
+.demo-sample-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(15, 108, 120, 0.28);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(15, 108, 120, 0.12), rgba(15, 108, 120, 0.04));
+}
+
 .checklist {
   display: grid;
   gap: 12px;

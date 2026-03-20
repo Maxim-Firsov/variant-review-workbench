@@ -4,11 +4,10 @@
   <section class="hero" data-run-root data-run-id="{{ run_id }}" data-run-status="{{ job.status }}">
     <div class="status-grid">
       <div>
-        <p class="eyebrow">Run Results</p>
-        <h1>Review the generated report and exported artifacts.</h1>
+        <p class="eyebrow">Run</p>
+        <h1>Run output</h1>
         <p>
-          This page embeds the actual report artifact produced by the shared backend pipeline. The browser interface
-          is reading the same generated outputs that the CLI writes to disk.
+          View the report and download the generated files.
         </p>
         <div class="actions">
           {% if job.result and job.status == "succeeded" %}
@@ -21,7 +20,7 @@
         </div>
       </div>
       <div class="meta-card">
-        <strong>Run overview</strong>
+        <strong>Run summary</strong>
         <div class="mono">{{ run_id }}</div>
         <div class="subtle-divider"></div>
         <div class="actions-inline">
@@ -29,17 +28,17 @@
         </div>
         <p data-status-message class="muted" style="margin-bottom: 0;">
           {% if job.status == "succeeded" %}
-            The report and export artifacts are ready.
+            Report and exports are ready.
           {% elif job.status == "failed" %}
-            The job failed before the report could be rendered.
+            Run failed.
           {% elif job.status == "running" %}
-            The job is running now. This page will refresh when the report is ready.
+            Run in progress. This page refreshes automatically.
           {% else %}
-            The job is queued. This page is polling the status endpoint.
+            Run queued.
           {% endif %}
         </p>
         <p class="footer-note" style="margin-top: 18px;">
-          Non-clinical output only. Run-local files are subject to the configured cleanup window of
+          Research use only. Run files are removed after
           {{ web_scope.run_retention_hours }} hour{% if web_scope.run_retention_hours != 1 %}s{% endif %}.
         </p>
       </div>
@@ -51,7 +50,7 @@
       <h2>Job status</h2>
       <span class="mono">{{ url_for('run_status', run_id=run_id) }}</span>
     </div>
-    <p class="muted">Use the status endpoint for programmatic polling. The browser refreshes automatically while the job is queued or running.</p>
+    <p class="muted">Use the status endpoint for polling.</p>
     <div class="subtle-divider"></div>
     <div class="status-list">
       <div class="status-item">
@@ -102,32 +101,30 @@
         <div class="fact-card">
           <strong>Input Variants</strong>
           <span class="metric">{{ job.result.summary.input_variant_count }}</span>
-          <p>Total uploaded VCF records processed by this run.</p>
+          <p>Variant records processed in this run.</p>
         </div>
         <div class="fact-card">
           <strong>ClinVar Matches</strong>
           <span class="metric">{{ job.result.summary.clinvar_matched_count }}</span>
-          <p>Exact assembly-aware matches found in the configured ClinVar snapshot.</p>
+          <p>Matched records in the configured ClinVar data.</p>
         </div>
         <div class="fact-card">
           <strong>Conflicts</strong>
           <span class="metric">{{ job.result.summary.conflict_flagged_count }}</span>
-          <p>Findings surfaced into the conflict review queue for manual inspection.</p>
+          <p>Records flagged for conflict review.</p>
         </div>
         <div class="fact-card">
           <strong>Web Variant Cap</strong>
           <span class="metric">{{ job.result.max_input_variants }}</span>
-          <p>Maximum variant records processed for each web submission.</p>
+          <p>Maximum variant records processed per web run.</p>
         </div>
       </div>
       {% if job.result.summary.input_variant_count > 0 and job.result.summary.clinvar_matched_count == 0 %}
         <div class="notice warning" style="margin-top: 16px;">
-          <strong>No ClinVar matches were found for this run.</strong>
+          <strong>No ClinVar matches found.</strong>
           <p>
-            All variants were assigned <code>context_only</code>. Confirm the selected assembly
-            (<code>{{ job.result.assembly }}</code>) matches the VCF coordinates (for example, GRCh37 versus GRCh38),
-            and verify the configured ClinVar snapshot covers these loci. Custom assemblies can only be run via
-            command line, requiring a cold start.
+            All variants were assigned <code>context_only</code>. Check the selected assembly
+            (<code>{{ job.result.assembly }}</code>) and the configured ClinVar data.
           </p>
         </div>
       {% endif %}
@@ -146,7 +143,7 @@
     </section>
   {% else %}
     <section class="panel" style="margin-top: 24px;">
-      <h2>Current state</h2>
+      <h2>Status</h2>
       {% if job.error %}
         <div class="notice error">
           <strong>Run failed</strong>
@@ -154,17 +151,17 @@
         </div>
       {% else %}
         <div class="notice">
-          <strong>Waiting on completion</strong>
-          <p>The report preview will appear here automatically once the job reaches the `succeeded` state.</p>
+          <strong>Waiting for output</strong>
+          <p>The report preview appears when the run succeeds.</p>
         </div>
       {% endif %}
       <ul>
-        <li>Generated report will be embedded here when ready.</li>
-        <li>Web runs process at most {{ web_scope.max_input_variants }} variant records per submission.</li>
-        <li>Export controls will remain visible after the job succeeds.</li>
-        <li>Artifacts and provenance remain bound to the run workspace.</li>
+        <li>The report preview appears here when ready.</li>
+        <li>Web runs process at most {{ web_scope.max_input_variants }} variants.</li>
+        <li>Export buttons appear after the run succeeds.</li>
+        <li>Files remain tied to this run workspace.</li>
       </ul>
-      <p class="footer-note">Do not upload protected health information or rely on this page as a clinical system of record.</p>
+      <p class="footer-note">Do not upload patient-identifying data.</p>
     </section>
   {% endif %}
 {% endblock %}

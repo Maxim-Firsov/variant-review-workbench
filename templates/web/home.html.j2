@@ -4,33 +4,31 @@
   <section class="hero">
     <div class="hero-grid">
       <div>
-        <p class="eyebrow">Analyst Interface</p>
+        <p class="eyebrow">VCF Review</p>
         <div class="chip-row">
-          <span class="chip">ClinVar-first</span>
-          <span class="chip">Research use only</span>
-          <span class="chip">Shared backend pipeline</span>
+          <span class="chip">VCF input</span>
+          <span class="chip">ClinVar matching</span>
+          <span class="chip">HTML / JSON / Markdown</span>
         </div>
         <h1>Variant Review Workbench</h1>
         <p class="hero-lead">
-          The browser workflow reuses the existing ClinVar-first annotation, ranking, reporting, and export
-          stack. It is designed for review and reproducible artifact generation, not for clinical operations.
+          Upload a VCF, choose the assembly, and generate a report with export files.
         </p>
         <p>
-          Hosted runs write into isolated workspaces and the service reuses a shared processed ClinVar cache.
-          The retention window of {{ web_scope.run_retention_hours }} hour{% if web_scope.run_retention_hours != 1 %}s{% endif %}
-          applies to run workspaces, not to cache warm-up per query.
+          Runs use the shared ClinVar cache. Run files are removed after
+          {{ web_scope.run_retention_hours }} hour{% if web_scope.run_retention_hours != 1 %}s{% endif %}.
         </p>
         <div class="actions">
-          <a class="button" href="#run-setup">Start a run</a>
-          <a class="button ghost" href="{{ url_for('docs') }}">Review workflow details</a>
+          <a class="button" href="#run-setup">New run</a>
+          <a class="button ghost" href="{{ url_for('docs') }}">Usage</a>
         </div>
       </div>
       <div class="meta-card">
-        <strong>Hosted web profile</strong>
-        <p>The site accepts a VCF upload, runs the shared pipeline, renders the generated HTML report, and exposes HTML, JSON, or Markdown exports from the completed run.</p>
+        <strong>Tool summary</strong>
+        <p>Input: `.vcf` or `.vcf.gz`. Output: report preview plus HTML, JSON, and Markdown exports.</p>
         <dl class="data-list">
           <div>
-            <dt>Input cap</dt>
+            <dt>Upload limit</dt>
             <dd>{{ web_scope.max_upload_mb }} MB</dd>
           </div>
           <div>
@@ -51,29 +49,29 @@
       <div class="fact-card">
         <strong>Input</strong>
         <span class="metric">VCF</span>
-        <p>Accepts validated `.vcf` and `.vcf.gz` uploads up to {{ web_scope.max_upload_mb }} MB per submission.</p>
+        <p>Accepts `.vcf` and `.vcf.gz` uploads up to {{ web_scope.max_upload_mb }} MB.</p>
       </div>
       <div class="fact-card">
-        <strong>Execution</strong>
+        <strong>Pipeline</strong>
         <span class="metric">Shared</span>
-        <p>The web layer calls the same backend service, reporting code, and export generation paths as the CLI.</p>
+        <p>Uses the same run pipeline and report outputs as the CLI.</p>
       </div>
       <div class="fact-card">
         <strong>Outputs</strong>
         <span class="metric">3 Formats</span>
-        <p>Open the report in-browser or download the resulting HTML, JSON, or Markdown artifact after completion.</p>
+        <p>Open the report in the browser or download HTML, JSON, or Markdown.</p>
       </div>
     </div>
   </section>
 
   <section class="panel" id="run-setup" style="margin-top: 24px;">
     <h2>Run Setup</h2>
-    <p class="muted">Submit a VCF, confirm the coordinate system, and choose whether the run should open in the browser or redirect straight to an export artifact.</p>
+    <p class="muted">Upload a file, select the assembly, and choose the output mode.</p>
     <div class="subtle-divider"></div>
     <form class="stack" method="post" action="{{ url_for('create_run') }}" enctype="multipart/form-data" data-run-form>
       {% if form_error %}
         <div class="notice error">
-          <strong>Submission error</strong>
+          <strong>Input error</strong>
           <p>{{ form_error }}</p>
         </div>
       {% endif %}
@@ -81,7 +79,7 @@
         <div class="field">
           <label for="vcf_file">VCF upload</label>
           <input id="vcf_file" name="vcf_file" type="file" accept=".vcf,.vcf.gz,.gz" required>
-          <small>Use a local `.vcf` or `.vcf.gz` file. Uploaded inputs are isolated per run.</small>
+          <small>Select a local `.vcf` or `.vcf.gz` file.</small>
         </div>
 
         <div class="field">
@@ -90,7 +88,7 @@
             <option value="GRCh38">GRCh38</option>
             <option value="GRCh37">GRCh37</option>
           </select>
-          <small>Pick the assembly that matches the uploaded VCF coordinates.</small>
+          <small>Match the assembly to the VCF coordinates.</small>
         </div>
       </div>
 
@@ -99,11 +97,11 @@
         <div class="checklist">
           <label class="check" for="enable_pharmgkb">
             <input id="enable_pharmgkb" name="enable_pharmgkb" type="checkbox" value="true">
-            <span>Enable PharmGKB enrichment</span>
+            <span>Include PharmGKB enrichment</span>
           </label>
           <label class="check" for="mode_export_only">
             <input id="mode_export_only" name="mode" type="checkbox" value="export_only" data-export-only>
-            <span>Skip browser report and go straight to export</span>
+            <span>Return export only</span>
           </label>
         </div>
       </fieldset>
@@ -115,23 +113,22 @@
           <option value="html">HTML</option>
           <option value="md">Markdown</option>
         </select>
-        <small>Only used when "skip browser report" is selected.</small>
+        <small>Used only with export-only mode.</small>
       </div>
 
       <div class="notice">
-        <strong>Hosted process</strong>
-        <p>The shared ClinVar cache is prepared ahead of time and reused across hosted runs. Individual uploads do not trigger a full cache build.</p>
-        <p>Run workspaces are temporary and may remain on disk until cleanup occurs. Do not submit protected health information or production patient data.</p>
+        <strong>Data handling</strong>
+        <p>Uploads are stored per run and removed by cleanup. Do not upload patient-identifying data.</p>
       </div>
 
       <div class="actions">
         <button type="submit" data-submit-button data-loading="false">
-          <span class="loading-label-default">Run in browser</span>
-          <span class="loading-label-active">Submitting run...</span>
+          <span class="loading-label-default">Run</span>
+          <span class="loading-label-active">Submitting...</span>
         </button>
-        <a class="button secondary" href="{{ url_for('docs') }}">Open overview</a>
+        <a class="button secondary" href="{{ url_for('docs') }}">Usage</a>
       </div>
-      <p class="footer-note">This interface is scoped to research triage, reproducible outputs, and transparent artifact provenance.</p>
+      <p class="footer-note">Max web run size: {{ web_scope.max_input_variants }} variants.</p>
     </form>
   </section>
 {% endblock %}

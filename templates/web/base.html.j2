@@ -10,17 +10,17 @@
     <div class="shell">
       <header class="topbar">
         <a class="brand" href="{{ url_for('home') }}">
-          <span class="brand-mark">Research Demo</span>
+          <span class="brand-mark">Web Tool</span>
           <span class="brand-name">Variant Review Workbench</span>
         </a>
         <nav class="nav" aria-label="Primary">
-          <a href="{{ url_for('home') }}" class="{% if current_page == 'home' %}active{% endif %}">Home</a>
-          <a href="{{ url_for('docs') }}" class="{% if current_page == 'docs' %}active{% endif %}">Overview</a>
+          <a href="{{ url_for('home') }}" class="{% if current_page == 'home' %}active{% endif %}">Run</a>
+          <a href="{{ url_for('docs') }}" class="{% if current_page == 'docs' %}active{% endif %}">Usage</a>
         </nav>
       </header>
       <section class="scope-banner" aria-label="Usage scope">
-        <strong>Research-use only.</strong>
-        <span>This hosted interface demonstrates the pipeline and reporting workflow. It is not a clinical system, privacy boundary, or PHI-ready platform.</span>
+        <strong>Research use only.</strong>
+        <span>Do not upload patient-identifying data.</span>
       </section>
       {% block content %}{% endblock %}
     </div>

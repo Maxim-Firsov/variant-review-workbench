@@ -2,31 +2,30 @@
 
 {% block content %}
   <section class="hero">
-    <p class="eyebrow">Interface Overview</p>
+    <p class="eyebrow">Usage</p>
     <h1>Variant Review Workbench</h1>
     <p>
-      This web interface sits on top of the existing CLI-first architecture. The shared pipeline remains responsible
-      for ClinVar matching, conflict surfacing, optional PharmGKB enrichment, ranking, reporting, and export generation.
+      Use this interface to run the web workflow and download the generated outputs.
     </p>
     <div class="actions">
-      <a class="button" href="{{ url_for('home') }}">Open the run form</a>
-      <a class="button ghost" href="https://github.com/Maxim-Firsov/variant-review-workbench" target="_blank" rel="noreferrer">View repository</a>
+      <a class="button" href="{{ url_for('home') }}">Open run form</a>
+      <a class="button ghost" href="https://github.com/Maxim-Firsov/variant-review-workbench" target="_blank" rel="noreferrer">Repository</a>
     </div>
   </section>
 
   <section class="panel" style="margin-top: 24px;">
     <div class="docs-grid">
       <div class="doc-card">
-        <strong>What this app is</strong>
-        <p>A browser entry point for the same research pipeline and output contract already used by the CLI.</p>
+        <strong>Input</strong>
+        <p>Upload one `.vcf` or `.vcf.gz` file and select `GRCh37` or `GRCh38`.</p>
       </div>
       <div class="doc-card">
-        <strong>Core behavior</strong>
-        <p>Shared backend orchestration, artifact provenance, a hosted report workflow, and deployment-aware runtime controls.</p>
+        <strong>Processing</strong>
+        <p>The web run uses the same pipeline and report generator as the CLI.</p>
       </div>
       <div class="doc-card">
-        <strong>What it is not</strong>
-        <p>A clinical decision system, diagnostic portal, or privacy boundary for patient-identifying data.</p>
+        <strong>Scope</strong>
+        <p>Research use only. Do not upload patient-identifying data.</p>
       </div>
     </div>
   </section>
@@ -34,44 +33,43 @@
   <section class="panel" style="margin-top: 24px;">
     <div class="panel-grid">
       <div>
-        <h2>Browser workflow</h2>
+        <h2>Steps</h2>
         <ul>
-          <li>Upload a validated `.vcf` or `.vcf.gz` file.</li>
-          <li>Select the matching assembly: `GRCh37` or `GRCh38`.</li>
-          <li>Optionally enable PharmGKB enrichment for additional public PGx context.</li>
-          <li>Either open the report in the browser or redirect straight to HTML, JSON, or Markdown export.</li>
+          <li>Upload a `.vcf` or `.vcf.gz` file.</li>
+          <li>Select `GRCh37` or `GRCh38`.</li>
+          <li>Optionally include PharmGKB enrichment.</li>
+          <li>Open the report or download HTML, JSON, or Markdown.</li>
         </ul>
       </div>
       <div>
-        <h2>Generated outputs</h2>
+        <h2>Outputs</h2>
         <ul>
-          <li>Embedded generated HTML report from the same report builder used by the CLI.</li>
-          <li>Export artifacts in HTML, JSON, and Markdown.</li>
-          <li>Machine-readable run status endpoint for polling.</li>
-          <li>Run-local artifact directories with reproducibility metadata and summary outputs.</li>
+          <li>Report preview in the browser.</li>
+          <li>HTML, JSON, and Markdown exports.</li>
+          <li>Status endpoint for polling.</li>
+          <li>Run summary and metadata files.</li>
         </ul>
       </div>
     </div>
-    <p class="footer-note">The browser interface remains additive. The CLI is still the canonical execution path for local scripted use.</p>
+    <p class="footer-note">Web runs process at most {{ web_scope.max_input_variants }} variants.</p>
   </section>
 
   <section class="panel" style="margin-top: 24px;">
     <div class="panel-grid">
       <div>
-        <h2>Hosted guardrails</h2>
+        <h2>Limits</h2>
         <ul>
-          <li>Research-use only, with no clinical decision support claims.</li>
-          <li>Uploads are capped at {{ web_scope.max_upload_mb }} MB per request.</li>
-          <li>Submitted files are retained in run-local storage for roughly {{ web_scope.run_retention_hours }} hour{% if web_scope.run_retention_hours != 1 %}s{% endif %}, subject to cleanup timing.</li>
-          <li>Do not submit protected health information or production patient data.</li>
+          <li>Upload limit: {{ web_scope.max_upload_mb }} MB.</li>
+          <li>Run retention: about {{ web_scope.run_retention_hours }} hour{% if web_scope.run_retention_hours != 1 %}s{% endif %}.</li>
+          <li>No patient-identifying data.</li>
         </ul>
       </div>
       <div>
-        <h2>Deployment notes</h2>
+        <h2>Runtime</h2>
         <ul>
-          <li>The mounted disk stores raw ClinVar inputs, temporary run workspaces, and a shared processed ClinVar cache.</li>
-          <li>The processed ClinVar cache should be built offline and uploaded before treating the hosted site as ready.</li>
-          <li>`/healthz` should be used only after required runtime paths and ClinVar inputs exist on disk.</li>
+          <li>The site reuses a shared ClinVar cache.</li>
+          <li>Uploads are stored in per-run workspaces.</li>
+          <li>Use `/healthz` to check service status.</li>
         </ul>
       </div>
     </div>

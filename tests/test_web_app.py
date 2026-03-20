@@ -192,22 +192,22 @@ class WebAppTests(unittest.TestCase):
         response = self.client.get("/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Build a variant triage for research selection.", response.data)
+        self.assertIn(b"Upload a VCF, choose the assembly, and generate a report with export files.", response.data)
         self.assertIn(b"Run Setup", response.data)
         self.assertIn(b'enctype="multipart/form-data"', response.data)
         self.assertIn(b"3 Formats", response.data)
-        self.assertIn(b"Research-use only.", response.data)
+        self.assertIn(b"Research use only.", response.data)
         self.assertIn(b"25 MB", response.data)
-        self.assertIn(b"Individual uploads do not trigger a full cache build.", response.data)
+        self.assertIn(b"Do not upload patient-identifying data.", response.data)
 
     def test_docs_page_renders_project_context(self) -> None:
         response = self.client.get("/docs")
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Variant Review Workbench", response.data)
-        self.assertIn(b"Browser workflow", response.data)
-        self.assertIn(b"Hosted guardrails", response.data)
-        self.assertIn(b"processed ClinVar cache should be built offline", response.data)
+        self.assertIn(b"Steps", response.data)
+        self.assertIn(b"Limits", response.data)
+        self.assertIn(b"The site reuses a shared ClinVar cache.", response.data)
 
     def test_site_pages_send_no_cache_headers(self) -> None:
         response = self.client.get("/")
@@ -354,16 +354,16 @@ class WebAppTests(unittest.TestCase):
         response = self.client.get(create_response.headers["Location"])
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Review the generated report and exported artifacts.", response.data)
+        self.assertIn(b"Run output", response.data)
         self.assertIn(b"status-badge succeeded", response.data)
         self.assertIn(b"html", response.data)
-        self.assertIn(b"The report and export artifacts are ready.", response.data)
+        self.assertIn(b"Report and exports are ready.", response.data)
         self.assertIn(b"Uploaded VCF", response.data)
         self.assertIn(b"Report Preview", response.data)
         self.assertIn(b"Export HTML", response.data)
         self.assertIn(b"Export JSON", response.data)
         self.assertIn(b"Export Markdown", response.data)
-        self.assertIn(b"Non-clinical output only.", response.data)
+        self.assertIn(b"Research use only.", response.data)
 
     def test_results_page_shows_no_match_warning_when_clinvar_match_count_is_zero(self) -> None:
         create_response = self.client.post(
@@ -378,7 +378,7 @@ class WebAppTests(unittest.TestCase):
         response = self.client.get(create_response.headers["Location"])
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"No ClinVar matches were found for this run.", response.data)
+        self.assertIn(b"No ClinVar matches found.", response.data)
         self.assertIn(b"All variants were assigned", response.data)
         self.assertIn(b"context_only", response.data)
         self.assertIn(b"GRCh37", response.data)
@@ -457,7 +457,7 @@ class WebAppTests(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 400)
-        self.assertIn(b"Submission error", response.data)
+        self.assertIn(b"Input error", response.data)
         self.assertIn(b"A VCF or VCF.GZ file is required.", response.data)
 
     def test_create_run_rejects_non_vcf_upload(self) -> None:

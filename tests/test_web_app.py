@@ -225,6 +225,8 @@ class WebAppTests(unittest.TestCase):
         self.assertIn(b"What feedback is useful", response.data)
         self.assertIn(b"What to include", response.data)
         self.assertIn(b"Repository", response.data)
+        self.assertIn(b"maxim@firsov.net", response.data)
+        self.assertIn(b"maxim-firsov-12480a164", response.data)
 
     def test_site_pages_send_no_cache_headers(self) -> None:
         response = self.client.get("/")

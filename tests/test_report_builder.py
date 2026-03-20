@@ -114,6 +114,24 @@ class ReportBuilderTests(unittest.TestCase):
         self.assertEqual(context["variant_rows"][0]["gene"], "TP53")
         self.assertIsNone(context["no_clinvar_match_warning"])
 
+    def test_build_report_context_respects_top_findings_limit(self) -> None:
+        ranked_variants = [
+            build_ranked_variant("record-1", "TP53", 43045702, ReviewPriorityTier.HIGH_REVIEW_PRIORITY, 17.5, conflict=True),
+            build_ranked_variant("record-2", "BRAF", 140453136, ReviewPriorityTier.REVIEW, 7.0),
+            build_ranked_variant("record-3", "EGFR", 55249071, ReviewPriorityTier.REVIEW, 6.0),
+        ]
+        metadata = RunMetadata(
+            input_path="data/demo.vcf",
+            output_dir="outputs/demo",
+            assembly=GenomeAssembly.GRCH38,
+        )
+
+        context = build_report_context(ranked_variants, metadata, top_findings_limit=2)
+
+        self.assertEqual(len(context["top_findings"]), 2)
+        self.assertEqual(context["top_findings"][0]["gene"], "TP53")
+        self.assertEqual(context["top_findings"][1]["gene"], "BRAF")
+
     def test_build_report_context_sets_no_match_warning_when_all_variants_unmatched(self) -> None:
         ranked_variants = [
             build_ranked_variant("record-1", "DPYD", 97450058, ReviewPriorityTier.CONTEXT_ONLY, 0.0, matched=False),

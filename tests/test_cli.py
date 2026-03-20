@@ -74,6 +74,26 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(args.report_title, "My Review")
 
+    def test_build_parser_accepts_top_findings_limit(self) -> None:
+        parser = build_parser()
+
+        args = parser.parse_args(
+            [
+                "--input",
+                "input.vcf",
+                "--assembly",
+                "GRCh38",
+                "--variant-summary",
+                "variant_summary.txt.gz",
+                "--out-dir",
+                "outputs",
+                "--top-findings-limit",
+                "2",
+            ]
+        )
+
+        self.assertEqual(args.top_findings_limit, 2)
+
     def test_build_parser_rejects_unsupported_assembly(self) -> None:
         parser = build_parser()
 
@@ -250,6 +270,7 @@ class CliTests(unittest.TestCase):
                 out_dir=str(out_dir),
                 max_input_variants=None,
                 enable_pharmgkb=False,
+                top_findings_limit=1,
                 report_title="Custom Variant Report",
             )
 
@@ -275,6 +296,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("Custom Variant Report", report_html)
         self.assertIn("# Custom Variant Report", report_markdown)
         self.assertEqual(report_export["report_title"], "Custom Variant Report")
+        self.assertEqual(len(report_export["top_findings"]), 1)
         self.assertEqual(variants_json["schema_version"], "1.0")
         self.assertEqual(variants_json["artifact_type"], "prioritized_variants")
         self.assertEqual(variants_json["records"][0]["input_gene"], "TP53")
@@ -296,6 +318,7 @@ class CliTests(unittest.TestCase):
             out_dir="outputs",
             enable_pharmgkb=False,
             max_input_variants=None,
+            top_findings_limit=5,
             report_title="Variant Review Report",
         )
 

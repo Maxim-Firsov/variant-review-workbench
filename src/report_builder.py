@@ -188,12 +188,14 @@ def build_variant_export_records(ranked_variants: list[RankedVariant]) -> list[V
 def build_report_context(
     ranked_variants: list[RankedVariant],
     run_metadata: RunMetadata | None = None,
+    *,
+    top_findings_limit: int = 5,
 ) -> dict[str, object]:
     """Build the full template context for the HTML report."""
     summary = build_report_summary(ranked_variants)
     assembly_value = run_metadata.assembly.value if run_metadata is not None else None
     rows = [_build_variant_row(ranked_variant) for ranked_variant in ranked_variants[:MAX_REPORT_TABLE_ROWS]]
-    top_findings = rows[: min(5, len(rows))]
+    top_findings = rows[: min(top_findings_limit, len(rows))]
     conflict_rows = [row for row in rows if row["conflict"] == "Yes"]
     truncated_variant_count = max(0, len(ranked_variants) - MAX_REPORT_TABLE_ROWS)
     report_summary = {
@@ -349,9 +351,13 @@ def render_markdown_report_from_context(report_context: dict[str, object]) -> st
 def render_markdown_report(
     ranked_variants: list[RankedVariant],
     run_metadata: RunMetadata | None = None,
+    *,
+    top_findings_limit: int = 5,
 ) -> str:
     """Render a Markdown report from ranked variants."""
-    return render_markdown_report_from_context(build_report_context(ranked_variants, run_metadata=run_metadata))
+    return render_markdown_report_from_context(
+        build_report_context(ranked_variants, run_metadata=run_metadata, top_findings_limit=top_findings_limit)
+    )
 
 
 def write_markdown_report(output_path: Path, report_context: dict[str, object]) -> Path:
@@ -380,11 +386,13 @@ def write_report_bundle(output_dir: Path, report_context: dict[str, object]) -> 
 def render_html_report(
     ranked_variants: list[RankedVariant],
     run_metadata: RunMetadata | None = None,
+    *,
+    top_findings_limit: int = 5,
 ) -> str:
     """Render the analyst-facing HTML report."""
     environment = _build_environment()
     template = environment.get_template(REPORT_TEMPLATE_NAME)
-    context = build_report_context(ranked_variants, run_metadata=run_metadata)
+    context = build_report_context(ranked_variants, run_metadata=run_metadata, top_findings_limit=top_findings_limit)
     return template.render(**context)
 
 
@@ -392,11 +400,13 @@ def write_html_report(
     output_path: Path,
     ranked_variants: list[RankedVariant],
     run_metadata: RunMetadata | None = None,
+    *,
+    top_findings_limit: int = 5,
 ) -> Path:
     """Render and write an HTML report to disk."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
-        render_html_report(ranked_variants, run_metadata=run_metadata),
+        render_html_report(ranked_variants, run_metadata=run_metadata, top_findings_limit=top_findings_limit),
         encoding="utf-8",
     )
     return output_path

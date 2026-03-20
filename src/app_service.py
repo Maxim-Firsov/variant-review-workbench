@@ -144,7 +144,11 @@ def run_pipeline_with_result(args: argparse.Namespace) -> PipelineRunResult:
         if item.pharmgkb is not None and item.pharmgkb.matched
     )
 
-    report_context = build_report_context(ranked_variants, run_metadata=run_metadata)
+    report_context = build_report_context(
+        ranked_variants,
+        run_metadata=run_metadata,
+        top_findings_limit=getattr(args, "top_findings_limit", 5),
+    )
     variant_export_records = build_variant_export_records(ranked_variants)
     prioritized_variants_artifact = PrioritizedVariantsArtifact(records=variant_export_records)
     summary_artifact = SummaryArtifact(**report_context["summary_artifact"])
@@ -158,7 +162,12 @@ def run_pipeline_with_result(args: argparse.Namespace) -> PipelineRunResult:
         ),
         "summary_json": write_json(output_dir / "summary.json", summary_artifact.model_dump(mode="json")),
         "run_metadata_json": write_json(output_dir / "run_metadata.json", run_metadata.model_dump(mode="json")),
-        "report_html": write_html_report(output_dir / "report.html", ranked_variants, run_metadata=run_metadata),
+        "report_html": write_html_report(
+            output_dir / "report.html",
+            ranked_variants,
+            run_metadata=run_metadata,
+            top_findings_limit=getattr(args, "top_findings_limit", 5),
+        ),
     }
     outputs.update(write_report_bundle(output_dir, report_context))
     return PipelineRunResult(outputs=outputs, run_metadata=run_metadata, report_context=report_context)
